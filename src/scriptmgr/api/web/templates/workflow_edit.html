@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% set active = 'workflows' %}
+{% block title %}Build: {{ workflow.name }} — ScriptManager{% endblock %}
+{% block content %}
+
+<style>
+/* Workflow builder styles */
+.wf-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; gap:1rem; flex-wrap:wrap; }
+.wf-canvas { display:flex; flex-direction:column; gap:0; }
+.step-card {
+  position:relative; background:#1e293b; border:2px solid #334155; border-radius:.6rem;
+  padding:1rem 1.25rem; transition:border-color .15s, transform .1s;
+  cursor:default; user-select:none;
+}
+.step-card:hover { border-color:#3b82f6; }
+.step-card.dragging { opacity:.5; transform:scale(.97); }
+.step-card.drag-over { border-color:#22c55e; border-style:dashed; }
+.step-connector {
+  display:flex; align-items:center; gap:.5rem; padding:.2rem 1.25rem;
+  font-size:.78rem; color:#64748b;
+}
+.step-connector::before, .step-connector::after {
+  content:''; flex:1; height:1px; background:#334155;
+}
+.cond-btn {
+  padding:.15rem .55rem; border-radius:9999px; font-size:.72rem; font-weight:600;
+  border:1px solid; cursor:pointer; transition:all .15s;
+}
+.cond-success { background:#14532d22; border-color:#22c55e; color:#86efac; }
+.cond-failure { background:#450a0a22; border-color:#ef4444; color:#fca5a5; }
+.cond-always  { background:#31288122; border-color:#a78bfa; color:#c4b5fd; }
+.step-num {
+  width:22px; height:22px; border-radius:50%; background:#3b82f6;
+  color:#fff; font-size:.72rem; font-weight:700;
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.picker-card {
+  background:#0f172a; border:1px solid #334155; border-radius:.5rem;
+  padding:.5rem; max-height:320px; overflow-y:auto;
+}
+.picker-item {
+  padding:.45rem .6rem; border-radius:.3rem; cursor:pointer; font-size:.85rem;
+  display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+  border-bottom:1px solid #1e293b;
+}
+.picker-item:last-child { border-bottom:none; }
+.picker-item:hover { background:#1e293b; }
+.num-field {
+  width:60px; padding:.25rem .4rem; background:#0f172a; border:1px solid #334155;
+  border-radius:.3rem; color:#e2e8f0; font-size:.8rem; text-align:center;
+}
+.save-indicator { font-size:.75rem; color:#64748b; }
+.save-indicator.saved { color:#22c55e; }
+.save-indicator.saving { color:#fbbf24; }
+</style>
+
+<div class="wf-header">
+  <div>
+    <a href="/workflows" style="font-size:.82rem;color:#64748b;display:block;margin-bottom:.2rem">← Workflows</a>
+    <h1 class="page-title" style="margin:0">{{ workflow.name }}</h1>
+    {% if workflow.description %}
+    <div style="color:#64748b;font-size:.85rem;margin-top:.2rem">{{ workflow.description }}</div>
+    {% endif %}
+  </div>
+  <div style="display:flex;gap:.6rem;align-items:center">
+    <span class="save-indicator" id="save-status"></span>
+    <button onclick="saveDAG()" class="btn btn-primary" id="save-btn">💾 Save</button>
+    <form method="post" action="/workflows/{{ workflow.id }}/run" style="display:inline">
+      <button class="btn" style="background:#166534;color:#86efac">▶ Run Workflow</button>
+    </form>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start">
+
+  <!-- Left: Canvas -->
+  <div>
+    <div class="card" style="margin-bottom:.75rem;padding:.75rem 1.25rem">
+      <div style="display:flex;align-items:center;gap:1rem;font-size:.82rem;color:#64748b">
+        <span>💡 Drag steps to reorder · Click condition badge to cycle · Click ✕ to remove</span>
+        <span id="step-summary" style="margin-left:auto;color:#94a3b8;font-weight:600"></span>
+      </div>
+    </div>
+
+    <div id="wf-canvas" class="wf-canvas" ondragover="canvasDragOver(event)" ondrop="canvasDrop(event)">
+      <!-- Steps rendered by JS -->
+    </div>
+
+    <div id="empty-canvas" style="text-align:center;padding:3rem 1rem;color:#334155;font-size:2rem;display:none">
+      ↗ Add scripts from the panel →
+      <div style="font-size:.9rem;color:#475569;margin-top:.5rem">Drag scripts from the library or click + Add</div>
+    </div>
+  </div>
+
+  <!-- Right: Script picker -->
+  <div style="position:sticky;top:1rem">
+    <div class="card" style="margin-bottom:.75rem">
+      <h3 style="font-size:.85rem;color:#94a3b8;margin-bottom:.6rem">QUICK ADD STEP</h3>
+      <div style="margin-bottom:.5rem">
+        <input id="picker-search" oninput="filterPicker(this.value)" placeholder="🔍 Filter scripts…"
+          style="width:100%;padding:.4rem .6rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem">
+      </div>
+      <div class="picker-card" id="picker-list">
+        {% for s in scripts %}
+        {% set ext = s.path.split('.')[-1].lower() if '.' in s.path else '' %}
+        {% set langname = 'ps' if (s.interpreter in ('powershell','pwsh') or ext == 'ps1') else ('bat' if (s.interpreter in ('cmd','batch') or ext in ('bat','cmd')) else ('go' if (s.interpreter == 'go' or ext == 'go') else ('exe' if (ext == 'exe' or s.interpreter == '') else 'py'))) %}
+        {% set langcolor = '#93c5fd' if langname=='ps' else ('#c4b5fd' if langname=='bat' else ('#6ee7b7' if langname=='go' else ('#fca5a5' if langname=='exe' else '#93c5fd'))) %}
+        <div class="picker-item" data-search="{{ s.name|lower }} {{ (s.group.name if s.group else '')|lower }}"
+             draggable="true" ondragstart="pickerDragStart(event, {{ s.id }}, '{{ s.name|e }}')"
+             onclick="addStep({{ s.id }}, '{{ s.name|e }}')">
+          <span>
+            <span style="font-size:.7rem;background:#1e293b;color:{{ langcolor }};padding:.1rem .3rem;border-radius:.2rem;margin-right:.35rem">{{ langname }}</span>
+            <strong style="font-size:.85rem">{{ s.name }}</strong>
+            {% if s.group %}<span style="font-size:.72rem;color:#475569;margin-left:.3rem">{{ s.group.name }}</span>{% endif %}
+          </span>
+          <button class="btn btn-sm btn-primary" style="padding:.15rem .45rem;font-size:.75rem">+</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Step defaults -->
+    <div class="card">
+      <h3 style="font-size:.85rem;color:#94a3b8;margin-bottom:.6rem">DEFAULT SETTINGS FOR NEW STEPS</h3>
+      <div style="display:grid;gap:.5rem">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <label style="font-size:.8rem;color:#94a3b8">Default condition</label>
+          <select id="default-cond" style="padding:.25rem .5rem;background:#0f172a;border:1px solid #334155;border-radius:.3rem;color:#e2e8f0;font-size:.8rem">
+            <option value="success">on success</option>
+            <option value="always">always</option>
+            <option value="failure">on failure</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <label style="font-size:.8rem;color:#94a3b8">Default retry</label>
+          <input type="number" id="default-retry" value="0" min="0" max="5" class="num-field">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <label style="font-size:.8rem;color:#94a3b8">Default timeout (s)</label>
+          <input type="number" id="default-timeout" value="0" min="0" class="num-field">
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Save form -->
+<form id="save-form" method="post" action="/workflows/{{ workflow.id }}/save" style="display:none">
+  <input type="hidden" name="dag_json" id="dag-json-input">
+</form>
+
+<script>
+// ── Script registry ──────────────────────────────────────────────────────────
+const scriptNames = { {% for s in scripts %}"{{ s.id }}": "{{ s.name|e }}", {% endfor %} };
+const scriptGroups = { {% for s in scripts %}"{{ s.id }}": "{{ (s.group.name if s.group else '')|e }}", {% endfor %} };
+const scriptPaths  = { {% for s in scripts %}"{{ s.id }}": "{{ s.path|e }}", {% endfor %} };
+
+// ── DAG state ─────────────────────────────────────────────────────────────────
+let dag = {{ workflow.dag | tojson }};
+if (!dag || !dag.nodes) dag = { nodes: [], edges: [] };
+
+let dragSrcIdx = null;     // canvas reorder
+let pickerDragId = null;   // dragging from picker
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const canvas = document.getElementById('wf-canvas');
+  const empty  = document.getElementById('empty-canvas');
+  const summary = document.getElementById('step-summary');
+
+  canvas.innerHTML = '';
+  empty.style.display = dag.nodes.length === 0 ? '' : 'none';
+  summary.textContent = dag.nodes.length + ' step' + (dag.nodes.length !== 1 ? 's' : '');
+
+  dag.nodes.forEach((node, idx) => {
+    // Connector (between steps)
+    if (idx > 0) {
+      const edge = dag.edges.find(e => e.to === node.id);
+      const cond = edge ? edge.on : 'success';
+      const div = document.createElement('div');
+      div.className = 'step-connector';
+      div.innerHTML = `
+        <button class="cond-btn cond-${cond}" onclick="cycleCondition(${idx})" title="Click to change condition">
+          ${cond === 'success' ? '✓ on success' : cond === 'failure' ? '✗ on failure' : '↻ always'}
+        </button>`;
+      canvas.appendChild(div);
+    }
+
+    // Step card
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.draggable = true;
+    card.dataset.idx = idx;
+    card.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:.75rem">
+        <span class="step-num">${idx + 1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+            <strong style="font-size:.95rem">${scriptNames[node.script_id] || 'Script #' + node.script_id}</strong>
+            <span style="font-size:.72rem;color:#475569">${scriptGroups[node.script_id] || ''}</span>
+          </div>
+          <div style="font-size:.75rem;color:#475569;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+               title="${scriptPaths[node.script_id]||''}">${scriptPaths[node.script_id]||''}</div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-top:.5rem;flex-wrap:wrap">
+            <label style="font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:.35rem">
+              Retry
+              <input type="number" class="num-field" value="${node.retry||0}" min="0" max="5"
+                onchange="updateNode(${idx},'retry',+this.value)">
+            </label>
+            <label style="font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:.35rem">
+              Timeout (s)
+              <input type="number" class="num-field" value="${node.timeout_sec||0}" min="0"
+                onchange="updateNode(${idx},'timeout_sec',+this.value)">
+              <span style="color:#475569">${node.timeout_sec > 0 ? '' : '(none)'}</span>
+            </label>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">
+          <button onclick="removeStep(${idx})" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;line-height:1" title="Remove step">✕</button>
+          <div style="display:flex;gap:.2rem;margin-top:.25rem">
+            ${idx > 0 ? `<button onclick="moveStep(${idx},-1)" class="btn btn-sm" style="background:#334155;color:#94a3b8;padding:.15rem .4rem;font-size:.75rem">↑</button>` : '<span style="width:28px"></span>'}
+            ${idx < dag.nodes.length - 1 ? `<button onclick="moveStep(${idx},1)" class="btn btn-sm" style="background:#334155;color:#94a3b8;padding:.15rem .4rem;font-size:.75rem">↓</button>` : '<span style="width:28px"></span>'}
+          </div>
+        </div>
+      </div>`;
+    // Drag events for reordering
+    card.addEventListener('dragstart', e => { dragSrcIdx = idx; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    card.addEventListener('dragend',   () => { card.classList.remove('dragging'); dragSrcIdx = null; });
+    card.addEventListener('dragover',  e => { e.preventDefault(); card.classList.add('drag-over'); });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      card.classList.remove('drag-over');
+      if (pickerDragId !== null) {
+        // Drop from picker: insert at this position
+        insertStep(pickerDragId, idx);
+        pickerDragId = null;
+      } else if (dragSrcIdx !== null && dragSrcIdx !== idx) {
+        reorderStep(dragSrcIdx, idx);
+        dragSrcIdx = null;
+      }
+    });
+    canvas.appendChild(card);
+  });
+}
+
+// ── DAG mutations ────────────────────────────────────────────────────────────
+function genId() { return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
+function addStep(scriptId, name) {
+  const cond    = document.getElementById('default-cond').value;
+  const retry   = +document.getElementById('default-retry').value || 0;
+  const timeout = +document.getElementById('default-timeout').value || 0;
+  const nodeId  = genId();
+  dag.nodes.push({ id: nodeId, script_id: scriptId, retry, timeout_sec: timeout, label: name });
+  if (dag.nodes.length > 1) {
+    dag.edges.push({ from: dag.nodes[dag.nodes.length - 2].id, to: nodeId, on: cond });
+  }
+  render();
+  markDirty();
+}
+
+function insertStep(scriptId, atIdx) {
+  const cond    = document.getElementById('default-cond').value;
+  const retry   = +document.getElementById('default-retry').value || 0;
+  const timeout = +document.getElementById('default-timeout').value || 0;
+  const nodeId  = genId();
+  const node    = { id: nodeId, script_id: scriptId, retry, timeout_sec: timeout };
+  dag.nodes.splice(atIdx, 0, node);
+  rebuildEdges(cond);
+  render();
+  markDirty();
+}
+
+function removeStep(idx) {
+  dag.nodes.splice(idx, 1);
+  rebuildEdges(null);
+  render();
+  markDirty();
+}
+
+function moveStep(idx, dir) {
+  const ni = idx + dir;
+  if (ni < 0 || ni >= dag.nodes.length) return;
+  [dag.nodes[idx], dag.nodes[ni]] = [dag.nodes[ni], dag.nodes[idx]];
+  rebuildEdges(null);
+  render();
+  markDirty();
+}
+
+function reorderStep(fromIdx, toIdx) {
+  const [node] = dag.nodes.splice(fromIdx, 1);
+  dag.nodes.splice(toIdx, 0, node);
+  rebuildEdges(null);
+  render();
+  markDirty();
+}
+
+function cycleCondition(idx) {
+  const order = ['success', 'always', 'failure'];
+  const edge = dag.edges.find(e => e.to === dag.nodes[idx].id);
+  if (!edge) return;
+  const ci = order.indexOf(edge.on);
+  edge.on = order[(ci + 1) % order.length];
+  render();
+  markDirty();
+}
+
+function updateNode(idx, field, value) {
+  dag.nodes[idx][field] = value;
+  markDirty();
+}
+
+function rebuildEdges(defaultCond) {
+  // Keep existing conditions where possible
+  const oldEdges = [...dag.edges];
+  dag.edges = [];
+  for (let i = 1; i < dag.nodes.length; i++) {
+    const old = oldEdges.find(e => e.to === dag.nodes[i].id);
+    dag.edges.push({ from: dag.nodes[i-1].id, to: dag.nodes[i].id, on: old ? old.on : (defaultCond || 'success') });
+  }
+}
+
+// ── Drag from picker ─────────────────────────────────────────────────────────
+function pickerDragStart(event, scriptId, name) {
+  pickerDragId = scriptId;
+  event.dataTransfer.effectAllowed = 'copy';
+}
+function canvasDragOver(event) { event.preventDefault(); }
+function canvasDrop(event) {
+  event.preventDefault();
+  if (pickerDragId !== null) {
+    addStep(pickerDragId, scriptNames[pickerDragId] || '');
+    pickerDragId = null;
+  }
+}
+
+// ── Picker filter ─────────────────────────────────────────────────────────────
+function filterPicker(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#picker-list .picker-item').forEach(el => {
+    el.style.display = !lq || (el.dataset.search||'').includes(lq) ? '' : 'none';
+  });
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+let dirty = false;
+function markDirty() {
+  dirty = true;
+  setStatus('saving', '● unsaved changes');
+}
+function setStatus(cls, text) {
+  const el = document.getElementById('save-status');
+  el.className = 'save-indicator ' + cls;
+  el.textContent = text;
+}
+
+function saveDAG() {
+  document.getElementById('dag-json-input').value = JSON.stringify(dag);
+  setStatus('saving', '● saving…');
+  document.getElementById('save-form').submit();
+}
+
+// Auto-save every 30s if dirty
+setInterval(() => { if (dirty) saveDAG(); }, 30000);
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); saveDAG(); } });
+
+// Init
+render();
+setStatus('saved', '✓ saved');
+</script>
+{% endblock %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <div>
+    <a href="/workflows" style="font-size:.85rem;color:#64748b">← Back to Workflows</a>
+    <h1 class="page-title" style="margin:.25rem 0 0">{{ workflow.name }}</h1>
+    {% if workflow.description %}<div style="color:#64748b;font-size:.9rem">{{ workflow.description }}</div>{% endif %}
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <button onclick="saveDAG()" class="btn btn-primary">💾 Save</button>
+    <form method="post" action="/workflows/{{ workflow.id }}/run" style="display:inline">
+      <button class="btn" style="background:#166534;color:#86efac">▶ Run Now</button>
+    </form>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:1rem">
+  <!-- Left: Script picker -->
+  <div>
+    <div class="card" style="margin-bottom:1rem">
+      <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:.75rem">ADD STEP</h2>
+      <div style="margin-bottom:.5rem">
+        <label style="font-size:.8rem;color:#94a3b8">Script</label>
+        <select id="pick-script" style="width:100%;margin-top:.25rem;padding:.4rem .6rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+          {% for s in scripts %}
+          <option value="{{ s.id }}" data-name="{{ s.name }}" data-path="{{ s.path }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.5rem">
+        <div>
+          <label style="font-size:.8rem;color:#94a3b8">Retry (times)</label>
+          <input id="pick-retry" type="number" value="0" min="0" max="5"
+            style="width:100%;margin-top:.25rem;padding:.4rem .6rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+        </div>
+        <div>
+          <label style="font-size:.8rem;color:#94a3b8">Timeout (sec)</label>
+          <input id="pick-timeout" type="number" value="0" min="0"
+            style="width:100%;margin-top:.25rem;padding:.4rem .6rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+        </div>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <label style="font-size:.8rem;color:#94a3b8">Run condition (from prev step)</label>
+        <select id="pick-on" style="width:100%;margin-top:.25rem;padding:.4rem .6rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+          <option value="success">On success</option>
+          <option value="failure">On failure</option>
+          <option value="always">Always</option>
+        </select>
+      </div>
+      <button onclick="addStep()" class="btn btn-primary" style="width:100%">+ Add Step</button>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:.5rem">SCRIPT LIBRARY</h2>
+      <div style="max-height:250px;overflow-y:auto">
+        {% for s in scripts %}
+        <div style="font-size:.8rem;padding:.3rem .25rem;border-bottom:1px solid #334155;color:#94a3b8">
+          <strong style="color:#e2e8f0">{{ s.name }}</strong>
+          <span style="font-size:.7rem;margin-left:.25rem;color:#64748b">id={{ s.id }}</span>
+          <br><span style="font-family:monospace;font-size:.7rem">{{ s.path }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Step list (the DAG as ordered steps) -->
+  <div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h2 style="font-size:.85rem;color:#94a3b8;margin:0">WORKFLOW STEPS</h2>
+        <span style="font-size:.8rem;color:#64748b" id="step-count">0 steps</span>
+      </div>
+      <div id="step-list" style="min-height:80px">
+        <div id="empty-msg" style="color:#64748b;font-size:.85rem;text-align:center;padding:1.5rem">
+          No steps yet — add scripts from the left panel.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden save form -->
+<form id="save-form" method="post" action="/workflows/{{ workflow.id }}/save" style="display:none">
+  <input type="hidden" name="dag_json" id="dag-json-input">
+</form>
+
+<script>
+// Build script name lookup from Jinja
+const scriptNames = {
+  {% for s in scripts %}"{{ s.id }}": "{{ s.name|e }}",{% endfor %}
+};
+
+// Load existing DAG
+let dag = {{ workflow.dag | tojson }};
+if (!dag.nodes) dag = {nodes: [], edges: []};
+
+renderSteps();
+
+function renderSteps() {
+  const list = document.getElementById('step-list');
+  const emptyMsg = document.getElementById('empty-msg');
+  const countEl = document.getElementById('step-count');
+  countEl.textContent = dag.nodes.length + ' step' + (dag.nodes.length !== 1 ? 's' : '');
+
+  if (dag.nodes.length === 0) {
+    list.innerHTML = '<div id="empty-msg" style="color:#64748b;font-size:.85rem;text-align:center;padding:1.5rem">No steps yet — add scripts from the left panel.</div>';
+    return;
+  }
+
+  let html = '';
+  dag.nodes.forEach((node, idx) => {
+    const sname = scriptNames[node.script_id] || ('Script #' + node.script_id);
+    // Find edge leading into this node
+    const edge = dag.edges.find(e => e.to === node.id);
+    const condBadge = edge ? `<span style="font-size:.7rem;padding:.1rem .35rem;border-radius:9999px;background:#1e293b;color:#94a3b8;margin-right:.4rem">if: ${edge.on}</span>` : '';
+    html += `
+    <div style="display:flex;align-items:center;gap:.5rem;padding:.6rem;border:1px solid #334155;border-radius:.4rem;margin-bottom:.5rem;background:#0f172a">
+      <span style="background:#334155;color:#94a3b8;font-size:.75rem;padding:.2rem .5rem;border-radius:9999px;font-weight:600">${idx + 1}</span>
+      <div style="flex:1">
+        ${condBadge}
+        <strong style="font-size:.9rem">${sname}</strong>
+        <span style="font-size:.75rem;color:#64748b;margin-left:.5rem">id=${node.script_id}</span>
+        ${node.retry > 0 ? `<span style="font-size:.7rem;color:#fbbf24;margin-left:.5rem">retry×${node.retry}</span>` : ''}
+        ${node.timeout_sec > 0 ? `<span style="font-size:.7rem;color:#94a3b8;margin-left:.5rem">⏱${node.timeout_sec}s</span>` : ''}
+      </div>
+      <div style="display:flex;gap:.25rem">
+        ${idx > 0 ? `<button onclick="moveStep(${idx}, -1)" class="btn btn-sm" style="background:#334155;color:#e2e8f0;padding:.2rem .5rem">↑</button>` : ''}
+        ${idx < dag.nodes.length - 1 ? `<button onclick="moveStep(${idx}, 1)" class="btn btn-sm" style="background:#334155;color:#e2e8f0;padding:.2rem .5rem">↓</button>` : ''}
+        <button onclick="removeStep(${idx})" class="btn btn-sm btn-danger" style="padding:.2rem .5rem">✕</button>
+      </div>
+    </div>`;
+  });
+
+  // Add execution flow description
+  html += `<div style="margin-top:.75rem;padding:.6rem;background:#0f172a;border-radius:.4rem;font-size:.8rem;color:#64748b">
+    <strong style="color:#94a3b8">Execution order:</strong> `;
+  html += dag.nodes.map((n, i) => {
+    const edge = dag.edges.find(e => e.to === n.id);
+    const cond = edge ? ` <span style="color:#fbbf24">[${edge.on}]</span> →` : '';
+    return (i > 0 ? cond + ' ' : '') + `<span style="color:#e2e8f0">${scriptNames[n.script_id] || n.script_id}</span>`;
+  }).join('');
+  html += '</div>';
+
+  list.innerHTML = html;
+}
+
+function addStep() {
+  const sel = document.getElementById('pick-script');
+  const scriptId = parseInt(sel.value);
+  const retry = parseInt(document.getElementById('pick-retry').value) || 0;
+  const timeout = parseInt(document.getElementById('pick-timeout').value) || 0;
+  const on = document.getElementById('pick-on').value;
+
+  const nodeId = 'n' + (dag.nodes.length + 1 + Date.now() % 1000);
+  const node = {id: nodeId, script_id: scriptId, retry, timeout_sec: timeout, label: scriptNames[scriptId] || ''};
+  dag.nodes.push(node);
+
+  if (dag.nodes.length > 1) {
+    const prevNode = dag.nodes[dag.nodes.length - 2];
+    dag.edges.push({from: prevNode.id, to: nodeId, on});
+  }
+  renderSteps();
+}
+
+function removeStep(idx) {
+  const nodeId = dag.nodes[idx].id;
+  dag.nodes.splice(idx, 1);
+  // Remove edges involving this node; reconnect if needed
+  const prevEdge = dag.edges.find(e => e.to === nodeId);
+  const nextEdge = dag.edges.find(e => e.from === nodeId);
+  dag.edges = dag.edges.filter(e => e.to !== nodeId && e.from !== nodeId);
+  if (prevEdge && nextEdge) {
+    dag.edges.push({from: prevEdge.from, to: nextEdge.to, on: prevEdge.on});
+  }
+  renderSteps();
+}
+
+function moveStep(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= dag.nodes.length) return;
+  [dag.nodes[idx], dag.nodes[newIdx]] = [dag.nodes[newIdx], dag.nodes[idx]];
+  // Rebuild edges from scratch based on new order (keep "on" conditions where possible)
+  const oldEdges = [...dag.edges];
+  dag.edges = [];
+  for (let i = 1; i < dag.nodes.length; i++) {
+    const prev = dag.nodes[i-1].id;
+    const curr = dag.nodes[i].id;
+    const old = oldEdges.find(e => e.to === curr);
+    dag.edges.push({from: prev, to: curr, on: old ? old.on : 'success'});
+  }
+  renderSteps();
+}
+
+function saveDAG() {
+  document.getElementById('dag-json-input').value = JSON.stringify(dag);
+  document.getElementById('save-form').submit();
+}
+</script>
+{% endblock %}

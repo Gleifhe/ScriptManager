@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% set active = 'runs' %}
+{% block title %}Run #{{ run.id if run else '?' }} — ScriptManager{% endblock %}
+{% block content %}
+{% if not run %}
+  <h1 class="page-title">Run not found</h1>
+{% else %}
+<h1 class="page-title">
+  Run #{{ run.id }} — {{ run.script.name if run.script else (run.workflow.name if run.workflow else '?') }}
+  <span id="live-badge" style="display:none;font-size:.75rem;background:#1e3a5f;color:#93c5fd;padding:.25rem .6rem;border-radius:9999px;vertical-align:middle;margin-left:.5rem">● LIVE</span>
+  {% if run.status and run.status.value not in ('success','failed','timed_out','cancelled') %}
+  <form method="post" action="/runs/{{ run.id }}/cancel" onsubmit="return confirm('Cancel this run?')" style="display:inline;margin-left:.5rem">
+    <button class="btn btn-sm btn-danger">■ Stop</button>
+  </form>
+  {% endif %}
+</h1>
+
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="num">
+      <span id="status-badge" class="badge badge-{{ run.status.value if run.status else 'default' }}"
+        style="font-size:1.1rem;padding:.4rem 1rem">{{ run.status.value if run.status else '—' }}</span>
+    </div>
+    <div class="label">Status</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="font-size:1.2rem">{{ run.started_at.strftime('%H:%M:%S') if run.started_at else '—' }}</div>
+    <div class="label">Started</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="font-size:1.2rem" id="duration-cell">
+      {% if run.started_at and run.finished_at %}
+        {{ ((run.finished_at - run.started_at).total_seconds())|round(1) }}s
+      {% elif run.started_at %}
+        <span id="live-timer">running…</span>
+      {% else %}—{% endif %}
+    </div>
+    <div class="label">Duration</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="font-size:1.2rem" id="exit-code-cell">
+      {{ run.exit_code if run.exit_code is not none else '—' }}
+    </div>
+    <div class="label">Exit Code</div>
+  </div>
+</div>
+
+{% if run.params %}
+<div class="card" style="margin-bottom:1rem">
+  <span style="color:#94a3b8;font-size:.85rem">Runtime params: </span>
+  <code style="font-size:.85rem">{{ run.params|join(' ') }}</code>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <h2 style="font-size:1rem;color:#94a3b8;margin:0">LOG OUTPUT</h2>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <label style="font-size:.8rem;color:#64748b">
+        <input type="checkbox" id="autoscroll" checked style="margin-right:.3rem">Auto-scroll
+      </label>
+      <button onclick="copyLogs()" class="btn btn-sm" style="background:#334155;color:#e2e8f0">Copy</button>
+    </div>
+  </div>
+  <pre id="log-output" style="background:#0f172a;padding:1rem;border-radius:.4rem;overflow-x:auto;font-size:.8rem;line-height:1.6;max-height:600px;overflow-y:auto;white-space:pre-wrap;word-break:break-all">{% for log in logs %}<span style="color:{% if log.stream=='stderr' %}#fca5a5{% elif log.stream=='system' %}#fbbf24{% else %}#e2e8f0{% endif %}">{{ log.line }}
+</span>{% else %}<span id="empty-msg" style="color:#94a3b8">No output yet…</span>{% endfor %}</pre>
+</div>
+
+<script>
+const runId   = {{ run.id }};
+const isDone  = {{ 'true' if run.status and run.status.value in ('success','failed','timed_out','cancelled') else 'false' }};
+const startTs = {{ run.started_at.timestamp() * 1000 if run.started_at else 'null' }};
+
+const logEl   = document.getElementById('log-output');
+const badge   = document.getElementById('status-badge');
+const liveBadge = document.getElementById('live-badge');
+const exitEl  = document.getElementById('exit-code-cell');
+const timerEl = document.getElementById('live-timer');
+const emptyMsg = document.getElementById('empty-msg');
+
+// --- Live timer ---
+let timerInterval = null;
+if (!isDone && startTs) {
+  timerInterval = setInterval(() => {
+    if (!timerEl) return;
+    const secs = ((Date.now() - startTs) / 1000).toFixed(1);
+    timerEl.textContent = secs + 's';
+  }, 200);
+}
+
+// --- Badge colour map ---
+const colours = {
+  success:   'badge-success',
+  failed:    'badge-failed',
+  running:   'badge-running',
+  queued:    'badge-queued',
+  timed_out: 'badge-default',
+  cancelled: 'badge-default',
+};
+function setBadge(status) {
+  badge.className = 'badge ' + (colours[status] || 'badge-default');
+  badge.textContent = status;
+}
+
+// --- Append a log line ---
+function appendLine(stream, line) {
+  if (emptyMsg) emptyMsg.remove();
+  const span = document.createElement('span');
+  span.style.color = stream === 'stderr' ? '#fca5a5' : stream === 'system' ? '#fbbf24' : '#e2e8f0';
+  span.textContent = line + '\n';
+  logEl.appendChild(span);
+  if (document.getElementById('autoscroll').checked) {
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+// --- WebSocket live streaming ---
+if (!isDone) {
+  liveBadge.style.display = 'inline';
+  setBadge('running');
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/ws/runs/${runId}/logs`);
+
+  ws.onmessage = (evt) => {
+    const data = JSON.parse(evt.data);
+    if (data.line === '__done__') {
+      ws.close();
+      liveBadge.style.display = 'none';
+      clearInterval(timerInterval);
+      // Reload page to get final status + duration from server
+      setTimeout(() => location.reload(), 800);
+      return;
+    }
+    appendLine(data.stream, data.line);
+  };
+
+  ws.onerror = () => {
+    liveBadge.style.display = 'none';
+    // Fall back to polling
+    startPolling();
+  };
+
+  ws.onclose = () => { liveBadge.style.display = 'none'; };
+}
+
+// --- Polling fallback ---
+function startPolling() {
+  let lastId = logEl.querySelectorAll('span').length;
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/runs/${runId}`);
+      const data = await r.json();
+      setBadge(data.status);
+      if (['success','failed','timed_out','cancelled'].includes(data.status)) {
+        clearInterval(poll);
+        clearInterval(timerInterval);
+        setTimeout(() => location.reload(), 800);
+      }
+    } catch(e) {}
+  }, 2000);
+}
+
+// --- Copy button ---
+function copyLogs() {
+  const text = Array.from(logEl.querySelectorAll('span')).map(s => s.textContent).join('');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+</script>
+{% endif %}
+{% endblock %}

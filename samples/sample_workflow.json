@@ -1,0 +1,16 @@
+{
+  "nodes": [
+    {"id": "fetch",   "script_id": 1, "label": "Fetch data",    "retry": 1},
+    {"id": "process", "script_id": 2, "label": "Process data"},
+    {"id": "report",  "script_id": 3, "label": "Generate report"},
+    {"id": "notify",  "script_id": 4, "label": "Send notification", "retry": 2},
+    {"id": "cleanup", "script_id": 5, "label": "Cleanup temp files"}
+  ],
+  "edges": [
+    {"from": "fetch",   "to": "process", "on": "success"},
+    {"from": "process", "to": "report",  "on": "success"},
+    {"from": "process", "to": "notify",  "on": "failure"},
+    {"from": "report",  "to": "notify",  "on": "always"},
+    {"from": "report",  "to": "cleanup", "on": "success"}
+  ]
+}

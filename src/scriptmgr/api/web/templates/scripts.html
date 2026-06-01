@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% set active = 'scripts' %}
+{% block title %}Scripts — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Scripts</h1>
+  <button onclick="document.getElementById('new-script-form').style.display='block'" class="btn btn-primary">+ Add Script</button>
+</div>
+
+<!-- Add Script Form -->
+<div id="new-script-form" style="display:none" class="card" style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">ADD SCRIPT</h2>
+  <form method="post" action="/scripts">
+    <div style="display:grid;gap:.75rem;max-width:650px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Name *</label>
+          <input name="name" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Group *</label>
+          <select name="group_id" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Script / Executable path *</label>
+        <input name="path" required placeholder="C:\scripts\my_script.py  or  C:\tools\mytool.exe" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Language / Type</label>
+          <select name="interpreter" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            <option value="auto">Auto-detect (from extension)</option>
+            <option value="python">Python (.py)</option>
+            <option value="powershell">PowerShell (.ps1)</option>
+            <option value="cmd">Batch / CMD (.bat, .cmd)</option>
+            <option value="go">Go (go run)</option>
+            <option value="">Executable (.exe / binary)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Default args (space-separated)</label>
+          <input name="args_str" placeholder='--env prod "my value"' style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Timeout (sec, 0=none)</label>
+          <input name="timeout_sec" type="number" value="0" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Description</label>
+        <input name="description" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Add Script</button>
+        <button type="button" onclick="document.getElementById('new-script-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Run with params modal -->
+<div id="run-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
+  <div style="background:#1e293b;border-radius:.6rem;padding:1.5rem;width:520px;max-width:95vw">
+    <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">RUN SCRIPT</h2>
+    <form id="run-form" method="post">
+      <div style="margin-bottom:.75rem">
+        <div id="run-script-name" style="font-size:1rem;font-weight:600;margin-bottom:.5rem"></div>
+        <div id="run-script-path" style="font-size:.8rem;color:#94a3b8;font-family:monospace"></div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:.85rem;color:#94a3b8">Parameters <small style="color:#64748b">(added to default args, supports quoted values)</small></label>
+        <input name="params" id="run-params" placeholder='--output C:\results --verbose "my value"'
+          style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">▶ Run Now</button>
+        <button type="button" onclick="document.getElementById('run-modal').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <span id="script-count" style="font-size:.82rem;color:#64748b">{{ scripts|length }} script{{ 's' if scripts|length != 1 else '' }}</span>
+    <input id="script-search" oninput="filterScripts(this.value)" placeholder="🔍 Search by name, path, group, type…"
+      style="padding:.35rem .65rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem;width:260px">
+  </div>
+  {% if scripts %}
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Group</th><th>Type</th><th>Path</th><th>Runs</th><th></th></tr></thead>
+    <tbody id="scripts-tbody">
+    {% for s in scripts %}
+    {% set ext = s.path.split('.')[-1].lower() if '.' in s.path else '' %}
+    {% set langname = 'powershell' if (s.interpreter in ('powershell','pwsh') or ext == 'ps1') else ('batch' if (s.interpreter in ('cmd','batch') or ext in ('bat','cmd')) else ('go' if (s.interpreter == 'go' or ext == 'go') else ('executable' if (ext == 'exe' or s.interpreter == '') else 'python'))) %}
+    <tr data-search="{{ s.name|lower }} {{ s.path|lower }} {{ (s.group.name if s.group else '')|lower }} {{ langname }} {{ s.description|lower }}">
+      <td>{{ s.id }}</td>
+      <td>
+        <strong>{{ s.name }}</strong>
+        {% if s.description %}<br><small style="color:#94a3b8">{{ s.description }}</small>{% endif %}
+        {% if s.args %}<br><small style="color:#64748b;font-family:monospace">default: {{ s.args|join(' ') }}</small>{% endif %}
+      </td>
+      <td><span class="badge badge-default">{{ s.group.name if s.group else '—' }}</span></td>
+      <td>
+        {% if langname == 'powershell' %}<span class="badge" style="background:#1e3a5f;color:#93c5fd">PowerShell</span>
+        {% elif langname == 'batch' %}<span class="badge" style="background:#312e81;color:#c4b5fd">Batch</span>
+        {% elif langname == 'go' %}<span class="badge" style="background:#064e3b;color:#6ee7b7">Go</span>
+        {% elif langname == 'executable' %}<span class="badge" style="background:#7f1d1d;color:#fca5a5">Executable</span>
+        {% else %}<span class="badge" style="background:#1c2e4a;color:#93c5fd">Python</span>
+        {% endif %}
+      </td>
+      <td style="font-family:monospace;font-size:.78rem;color:#94a3b8;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.path }}">{{ s.path }}</td>
+      <td>{{ s.runs|length }}</td>
+      <td style="display:flex;gap:.4rem">
+        <button class="btn btn-sm btn-primary"
+          onclick="openRunModal({{ s.id }}, '{{ s.name|e }}', '{{ s.path|e }}')">▶ Run</button>
+        <button class="btn btn-sm" style="background:#334155;color:#e2e8f0"
+          onclick="openEditModal({{ s.id }}, '{{ s.name|e }}', '{{ s.path|e }}', {{ s.group_id }}, '{{ (s.interpreter or 'auto')|e }}', '{{ (s.args|join(' '))|e }}', {{ s.timeout_sec }}, '{{ s.description|e }}')">Edit</button>
+        <form method="post" action="/scripts/{{ s.id }}/delete" onsubmit="return confirm('Delete {{ s.name }}?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div id="no-results" style="display:none;padding:.75rem;color:#64748b;font-size:.85rem;text-align:center">No matching scripts.</div>
+  {% else %}
+  <div class="alert alert-info">No scripts yet. {% if not groups %}First <a href="/groups">create a group</a>, then add scripts.{% else %}Click "Add Script" above.{% endif %}</div>
+  {% endif %}
+</div>
+
+<!-- Edit Script Modal -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
+  <div style="background:#1e293b;border-radius:.6rem;padding:1.5rem;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">EDIT SCRIPT</h2>
+    <form id="edit-form" method="post">
+      <div style="display:grid;gap:.75rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div>
+            <label style="font-size:.85rem;color:#94a3b8">Name *</label>
+            <input id="edit-name" name="name" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          </div>
+          <div>
+            <label style="font-size:.85rem;color:#94a3b8">Group *</label>
+            <select id="edit-group" name="group_id" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+              {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Script / Executable path *</label>
+          <input id="edit-path" name="path" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+          <div>
+            <label style="font-size:.85rem;color:#94a3b8">Language / Type</label>
+            <select id="edit-interp" name="interpreter" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+              <option value="auto">Auto-detect</option>
+              <option value="python">Python</option>
+              <option value="powershell">PowerShell</option>
+              <option value="cmd">Batch / CMD</option>
+              <option value="go">Go</option>
+              <option value="">Executable</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:.85rem;color:#94a3b8">Default args</label>
+            <input id="edit-args" name="args_str" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          </div>
+          <div>
+            <label style="font-size:.85rem;color:#94a3b8">Timeout (sec)</label>
+            <input id="edit-timeout" name="timeout_sec" type="number" value="0" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Description</label>
+          <input id="edit-desc" name="description" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="button" onclick="document.getElementById('edit-modal').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function filterScripts(q) {
+  const lq = q.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('#scripts-tbody tr').forEach(tr => {
+    const show = !lq || (tr.dataset.search||'').includes(lq);
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const nr = document.getElementById('no-results');
+  if (nr) nr.style.display = (visible === 0 && lq) ? '' : 'none';
+  const cnt = document.getElementById('script-count');
+  if (cnt) cnt.textContent = visible + ' script' + (visible !== 1 ? 's' : '') + (lq ? ' matching' : '');
+}
+
+function openRunModal(id, name, path) {
+  document.getElementById('run-script-name').textContent = name;
+  document.getElementById('run-script-path').textContent = path;
+  document.getElementById('run-form').action = '/scripts/' + id + '/run';
+  document.getElementById('run-params').value = '';
+  document.getElementById('run-modal').style.display = 'flex';
+  document.getElementById('run-params').focus();
+}
+document.getElementById('run-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+
+function openEditModal(id, name, path, groupId, interp, args, timeout, desc) {
+  document.getElementById('edit-form').action = '/scripts/' + id + '/edit';
+  document.getElementById('edit-name').value = name;
+  document.getElementById('edit-path').value = path;
+  document.getElementById('edit-args').value = args;
+  document.getElementById('edit-timeout').value = timeout;
+  document.getElementById('edit-desc').value = desc;
+  const gs = document.getElementById('edit-group');
+  for (let o of gs.options) o.selected = (o.value == groupId);
+  const is = document.getElementById('edit-interp');
+  const interpVal = interp === '' ? '' : (interp || 'auto');
+  for (let o of is.options) o.selected = (o.value === interpVal);
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}

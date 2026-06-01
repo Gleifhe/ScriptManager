@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set active = 'schedules' %}
+{% block title %}Schedules — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Schedules</h1>
+  <button onclick="document.getElementById('new-sched-form').style.display='block'" class="btn btn-primary">+ New Schedule</button>
+</div>
+
+<div id="new-sched-form" style="display:none" class="card" style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">NEW SCHEDULE</h2>
+  <form method="post" action="/schedules">
+    <div style="display:grid;gap:.75rem;max-width:600px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Trigger Type *</label>
+          <select name="trigger_type" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            {% for t in trigger_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Expression *</label>
+          <input name="expression" required placeholder="e.g. 0 * * * * or 60" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Script (or leave blank)</label>
+          <select name="script_id" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            <option value="">— none —</option>
+            {% for s in scripts %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Workflow (or leave blank)</label>
+          <select name="workflow_id" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            <option value="">— none —</option>
+            {% for w in workflows %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="color:#94a3b8;font-size:.8rem">
+        Cron: <code>0 * * * *</code> = every hour &nbsp;|&nbsp;
+        Interval: seconds e.g. <code>300</code> = every 5 min &nbsp;|&nbsp;
+        Continuous: rerun delay in seconds
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="button" onclick="document.getElementById('new-sched-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if schedules %}
+  <table>
+    <thead><tr><th>#</th><th>Target</th><th>Type</th><th>Expression</th><th>Enabled</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+    {% for s in schedules %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>
+        {% if s.script %}📄 {{ s.script.name }}
+        {% elif s.workflow %}🔀 {{ s.workflow.name }}
+        {% else %}—{% endif %}
+      </td>
+      <td><span class="badge badge-default">{{ s.trigger_type.value }}</span></td>
+      <td><code style="font-size:.8rem">{{ s.expression }}</code></td>
+      <td>
+        <form method="post" action="/schedules/{{ s.id }}/toggle" style="display:inline">
+          <button class="btn btn-sm" style="background:{% if s.enabled %}#14532d;color:#86efac{% else %}#450a0a;color:#fca5a5{% endif %}">
+            {{ '✓ On' if s.enabled else '✗ Off' }}
+          </button>
+        </form>
+      </td>
+      <td style="color:#94a3b8">{{ s.created_at.strftime('%m/%d/%Y') if s.created_at else '—' }}</td>
+      <td>
+        <form method="post" action="/schedules/{{ s.id }}/delete" onsubmit="return confirm('Delete schedule?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No schedules yet. Create one above to automate your scripts.</div>
+  {% endif %}
+</div>
+{% endblock %}

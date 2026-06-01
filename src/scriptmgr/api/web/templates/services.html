@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% set active = 'services' %}
+{% block title %}Always-On Services — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Always-On Services</h1>
+  <button onclick="document.getElementById('new-svc-form').style.display='block'" class="btn btn-primary">+ Register Service</button>
+</div>
+
+<div class="alert alert-info" style="margin-bottom:1rem">
+  Always-on services are scripts wrapped as Windows services that restart automatically on failure.
+  Register a script here, then run <code>install-service.ps1</code> as Administrator (or use NSSM) to install it.
+  The service will call <code>POST /api/services/heartbeat</code> periodically to report its status.
+</div>
+
+<div id="new-svc-form" style="display:none" class="card" style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">REGISTER SERVICE</h2>
+  <form method="post" action="/services">
+    <div style="display:grid;gap:.75rem;max-width:500px">
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Script *</label>
+        <select name="script_id" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          {% for s in scripts %}<option value="{{ s.id }}">{{ s.name }} ({{ s.path }})</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Windows Service Name *</label>
+        <input name="service_name" required placeholder="MyScriptSvc" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Register</button>
+        <button type="button" onclick="document.getElementById('new-svc-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if services %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Script</th><th>Service Name</th><th>Status</th><th>PID</th><th>Last Heartbeat</th><th>NSSM Command</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for svc in services %}
+    {% set age_ok = false %}
+    <tr>
+      <td>{{ svc.id }}</td>
+      <td><strong>{{ svc.script.name if svc.script else '—' }}</strong>
+        {% if svc.script %}<br><small style="color:#64748b;font-family:monospace">{{ svc.script.path }}</small>{% endif %}
+      </td>
+      <td><code>{{ svc.service_name }}</code></td>
+      <td>
+        <span class="badge {% if svc.status == 'running' %}badge-running{% elif svc.status == 'stopped' %}badge-failed{% else %}badge-default{% endif %}">
+          {{ svc.status }}
+        </span>
+        {% if svc.last_heartbeat %}
+          {% set hb_str = svc.last_heartbeat.strftime('%Y-%m-%dT%H:%M:%S') %}
+          <span id="hb-{{ svc.id }}" style="font-size:.7rem;color:#94a3b8;margin-left:.25rem">
+            (checking…)
+          </span>
+          <script>
+          (function() {
+            const hbTime = new Date("{{ hb_str }}Z").getTime();
+            const ageOk = (Date.now() - hbTime) < 120000;
+            const el = document.getElementById('hb-{{ svc.id }}');
+            el.textContent = ageOk ? '● alive' : '● stale';
+            el.style.color = ageOk ? '#86efac' : '#fca5a5';
+          })();
+          </script>
+        {% endif %}
+      </td>
+      <td>{{ svc.pid or '—' }}</td>
+      <td style="font-size:.8rem;color:#94a3b8">{{ svc.last_heartbeat.strftime('%m/%d %H:%M:%S') if svc.last_heartbeat else 'never' }}</td>
+      <td>
+        <code style="font-size:.7rem;color:#94a3b8;background:#0f172a;padding:.1rem .35rem;border-radius:.2rem">
+          nssm install {{ svc.service_name }} "{{ svc.script.path if svc.script else '' }}"
+        </code>
+      </td>
+      <td>
+        <form method="post" action="/services/{{ svc.id }}/delete" onsubmit="return confirm('Remove {{ svc.service_name }}?')">
+          <button class="btn btn-sm btn-danger">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No always-on services registered. Click "Register Service" to add one.</div>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:.75rem">QUICK INSTALL GUIDE</h2>
+  <ol style="color:#94a3b8;font-size:.85rem;line-height:1.8;padding-left:1.25rem">
+    <li>Register the script above to get its service name</li>
+    <li>Open PowerShell <strong>as Administrator</strong></li>
+    <li>Install with NSSM: <code style="background:#0f172a;padding:.1rem .35rem;border-radius:.2rem">nssm install &lt;ServiceName&gt; "C:\path\to\script.py"</code></li>
+    <li>Set restart policy: <code style="background:#0f172a;padding:.1rem .35rem;border-radius:.2rem">nssm set &lt;ServiceName&gt; AppRestartDelay 5000</code></li>
+    <li>Start: <code style="background:#0f172a;padding:.1rem .35rem;border-radius:.2rem">nssm start &lt;ServiceName&gt;</code></li>
+    <li>The service will now auto-restart on crash and survive reboots</li>
+  </ol>
+</div>
+{% endblock %}

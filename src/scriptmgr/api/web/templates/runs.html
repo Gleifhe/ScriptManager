@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set active = 'runs' %}
+{% block title %}Runs — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Runs
+    <small style="font-size:.8rem;color:#94a3b8;font-weight:400">
+      ({{ total }} total{% if status_filter or script_filter %}, filtered{% endif %})
+    </small>
+  </h1>
+</div>
+
+<!-- Filters -->
+<form method="get" action="/runs" style="display:flex;gap:.75rem;align-items:flex-end;margin-bottom:1.25rem;flex-wrap:wrap">
+  <div>
+    <label style="font-size:.8rem;color:#94a3b8;display:block;margin-bottom:.25rem">Status</label>
+    <select name="status" style="padding:.4rem .75rem;background:#1e293b;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+      <option value="">All statuses</option>
+      {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label style="font-size:.8rem;color:#94a3b8;display:block;margin-bottom:.25rem">Script</label>
+    <select name="script_id" style="padding:.4rem .75rem;background:#1e293b;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.85rem">
+      <option value="">All scripts</option>
+      {% for s in scripts %}<option value="{{ s.id }}" {% if s.id|string == script_filter %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+  {% if status_filter or script_filter %}
+  <a href="/runs" class="btn btn-sm" style="background:#334155;color:#e2e8f0">Clear</a>
+  {% endif %}
+  <!-- Live text search (client-side) -->
+  <div style="margin-left:auto">
+    <input id="runs-search" oninput="filterRuns(this.value)" placeholder="🔍 Search by name, trigger…"
+      style="padding:.4rem .65rem;background:#1e293b;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem;width:220px">
+  </div>
+</form>
+
+<div class="card">
+  {% if runs %}
+  <table>
+    <thead>
+      <tr><th>#</th><th>Script / Workflow</th><th>Status</th><th>Trigger</th><th>Started</th><th>Duration</th><th>Exit</th><th></th></tr>
+    </thead>
+    <tbody id="runs-tbody">
+    {% for run in runs %}
+    <tr data-search="{{ (run.script.name if run.script else run.workflow.name if run.workflow else '')|lower }} {{ run.trigger_source|lower }} {{ run.status.value|lower }}">
+      <td>{{ run.id }}</td>
+      <td>
+        {% if run.script %}{{ run.script.name }}
+        {% elif run.workflow %}🔀 {{ run.workflow.name }}
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% set s = run.status.value if run.status else 'unknown' %}
+        <span class="badge badge-{{ s if s in ['success','failed','running','queued'] else 'default' }}">{{ s }}</span>
+      </td>
+      <td>{{ run.trigger_source or '—' }}</td>
+      <td>{{ run.started_at.strftime('%m/%d %H:%M:%S') if run.started_at else '—' }}</td>
+      <td>
+        {% if run.started_at and run.finished_at %}{{ ((run.finished_at - run.started_at).total_seconds())|round(1) }}s
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ run.exit_code if run.exit_code is not none else '—' }}</td>
+      <td style="display:flex;gap:.4rem">
+        <a href="/runs/{{ run.id }}" class="btn btn-sm btn-primary">Logs</a>
+        {% if run.status and run.status.value in ('queued','running') %}
+        <form method="post" action="/runs/{{ run.id }}/cancel" onsubmit="return confirm('Cancel run #{{ run.id }}?')">
+          <button class="btn btn-sm btn-danger">Stop</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  {% set pages = ((total - 1) // per_page + 1) %}
+  {% if pages > 1 %}
+  <div style="display:flex;gap:.5rem;align-items:center;margin-top:1rem;font-size:.85rem;color:#94a3b8">
+    {% if page > 1 %}
+    <a href="/runs?page={{ page-1 }}&status={{ status_filter }}&script_id={{ script_filter }}" class="btn btn-sm" style="background:#334155;color:#e2e8f0">← Prev</a>
+    {% endif %}
+    <span>Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}
+    <a href="/runs?page={{ page+1 }}&status={{ status_filter }}&script_id={{ script_filter }}" class="btn btn-sm" style="background:#334155;color:#e2e8f0">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="alert alert-info">No runs found. {% if status_filter or script_filter %}Try clearing the filter.{% else %}Go to <a href="/scripts">Scripts</a> and click ▶ Run.{% endif %}</div>
+  {% endif %}
+</div>
+
+<script>
+function filterRuns(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#runs-tbody tr').forEach(tr => {
+    tr.style.display = !lq || (tr.dataset.search||'').includes(lq) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

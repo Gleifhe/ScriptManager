@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set active = 'reports' %}
+{% block title %}Reports — ScriptManager{% endblock %}
+{% block content %}
+<h1 class="page-title">Reports &amp; Analytics</h1>
+
+<!-- Summary stats -->
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="num">{{ total }}</div>
+    <div class="label">Total Runs</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:#86efac">{{ success }}</div>
+    <div class="label">Succeeded</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:#fca5a5">{{ failed }}</div>
+    <div class="label">Failed</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:#fbbf24">{{ cancelled }}</div>
+    <div class="label">Cancelled</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:#c4b5fd">{{ avg_dur }}s</div>
+    <div class="label">Avg Duration</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:#93c5fd">{{ running_now }}</div>
+    <div class="label">Running Now</div>
+  </div>
+</div>
+
+<!-- Success rate bar -->
+{% if total > 0 %}
+<div class="card" style="margin-bottom:1rem">
+  <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:.75rem">OVERALL SUCCESS RATE</h2>
+  {% set pct = (success / total * 100)|round(1) %}
+  <div style="display:flex;align-items:center;gap:1rem">
+    <div style="flex:1;height:18px;background:#0f172a;border-radius:9999px;overflow:hidden">
+      <div style="width:{{ pct }}%;height:100%;background:{% if pct >= 80 %}#22c55e{% elif pct >= 50 %}#eab308{% else %}#ef4444{% endif %};border-radius:9999px;transition:width .5s"></div>
+    </div>
+    <span style="font-size:1.1rem;font-weight:700;color:{% if pct >= 80 %}#86efac{% elif pct >= 50 %}#fde047{% else %}#fca5a5{% endif %}">{{ pct }}%</span>
+  </div>
+</div>
+{% endif %}
+
+<!-- Last 14 days activity bar chart -->
+<div class="card" style="margin-bottom:1rem">
+  <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:1rem">RUNS PER DAY (LAST 14 DAYS)</h2>
+  {% set max_count = daily|map(attribute='count')|max if daily else 1 %}
+  {% set max_count = max_count if max_count > 0 else 1 %}
+  <div style="display:flex;align-items:flex-end;gap:4px;height:80px">
+    {% for d in daily %}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="width:100%;height:{{ (d.count / max_count * 64)|int }}px;background:#3b82f6;border-radius:2px 2px 0 0;min-height:{% if d.count > 0 %}4{% else %}0{% endif %}px"
+           title="{{ d.date }}: {{ d.count }} run{{ 's' if d.count != 1 else '' }}"></div>
+      <div style="font-size:.6rem;color:#64748b;transform:rotate(-45deg);transform-origin:center;white-space:nowrap">{{ d.date[5:] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Per-script breakdown -->
+<div class="card">
+  <h2 style="font-size:.85rem;color:#94a3b8;margin-bottom:1rem">PER-SCRIPT BREAKDOWN</h2>
+  {% if script_stats %}
+  <table>
+    <thead>
+      <tr>
+        <th>Script</th><th>Group</th><th>Total</th>
+        <th style="color:#86efac">✓ Success</th>
+        <th style="color:#fca5a5">✗ Failed</th>
+        <th>Avg Duration</th><th>Last Run</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ss in script_stats %}
+    <tr>
+      <td><strong>{{ ss.name }}</strong></td>
+      <td><span class="badge badge-default">{{ ss.group }}</span></td>
+      <td>{{ ss.total }}</td>
+      <td style="color:#86efac">{{ ss.success }}</td>
+      <td style="color:#fca5a5">{{ ss.failed }}</td>
+      <td>{{ ss.avg_sec }}s</td>
+      <td>
+        <span class="badge badge-{{ ss.last_status if ss.last_status in ['success','failed','running','queued'] else 'default' }}">
+          {{ ss.last_status }}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No completed runs yet. <a href="/scripts">Run a script</a> to see stats.</div>
+  {% endif %}
+</div>
+{% endblock %}

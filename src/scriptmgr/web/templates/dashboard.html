@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %} — Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+  <div class="card" style="text-align:center;">
+    <div style="font-size:2rem;font-weight:700;">{{ scripts|length }}</div>
+    <div style="color:#666;font-size:.85rem;">Scripts</div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div style="font-size:2rem;font-weight:700;">{{ groups|length }}</div>
+    <div style="color:#666;font-size:.85rem;">Groups</div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div style="font-size:2rem;font-weight:700;">{{ runs|selectattr('status','equalto','running')|list|length }}</div>
+    <div style="color:#666;font-size:.85rem;">Running Now</div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div style="font-size:2rem;font-weight:700;">{{ runs|selectattr('status','equalto','failed')|list|length }}</div>
+    <div style="color:#666;font-size:.85rem;">Recent Failures</div>
+  </div>
+</div>
+
+<h2>Recent Runs</h2>
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Script / Workflow</th><th>Trigger</th>
+      <th>Status</th><th>Started</th><th>Duration</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for run in runs %}
+    {% set dur = '' %}
+    {% if run.started_at and run.finished_at %}
+      {% set dur = ((run.finished_at - run.started_at).total_seconds()|int)|string + 's' %}
+    {% endif %}
+    <tr>
+      <td>{{ run.id }}</td>
+      <td>
+        {% if run.script %}<strong>{{ run.script.name }}</strong>
+        {% elif run.workflow_id %}workflow:{{ run.workflow_id }}
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ run.trigger_source }}</td>
+      <td><span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span></td>
+      <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '—' }}</td>
+      <td>{{ dur or '—' }}</td>
+      <td><a href="/runs/{{ run.id }}" class="btn btn-sm btn-primary">Logs</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" style="text-align:center;color:#999;padding:2rem;">No runs yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Groups &amp; Scripts</h2>
+<table>
+  <thead><tr><th>Group</th><th>Script</th><th>Tags</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for s in scripts %}
+    <tr>
+      <td>{{ s.group.name }}</td>
+      <td><strong>{{ s.name }}</strong><br><small style="color:#666;">{{ s.path }}</small></td>
+      <td>{{ s.tags | join(', ') }}</td>
+      <td>
+        <button class="btn btn-sm btn-primary"
+          hx-post="/api/scripts/{{ s.id }}/run"
+          hx-target="#run-result-{{ s.id }}"
+          hx-swap="innerHTML">▶ Run</button>
+        <span id="run-result-{{ s.id }}"></span>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" style="text-align:center;color:#999;padding:2rem;">No scripts registered. Use the CLI or API to add scripts.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

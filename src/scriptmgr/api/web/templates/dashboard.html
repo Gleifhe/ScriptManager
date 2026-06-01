@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Dashboard — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+  <h1 class="page-title" style="margin:0">Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <span id="refresh-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;transition:background .3s" title="Live"></span>
+    <span id="refresh-label" style="font-size:.78rem;color:#64748b">auto-refresh on</span>
+    <button id="refresh-toggle" onclick="toggleRefresh()" class="btn btn-sm" style="background:#334155;color:#94a3b8;padding:.2rem .6rem;font-size:.75rem">Pause</button>
+    <span id="last-updated" style="font-size:.72rem;color:#475569"></span>
+  </div>
+</div>
+
+<!-- Stat cards (auto-updated) -->
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="num">{{ scripts|length }}</div>
+    <div class="label">Scripts</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ groups|length }}</div>
+    <div class="label">Groups</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="stat-running" style="color:#93c5fd">{{ running }}</div>
+    <div class="label">Running Now</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="stat-queued" style="color:#c4b5fd">0</div>
+    <div class="label">Queued</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="stat-rate" style="color:#86efac">
+      {% set finished = runs|selectattr('finished_at')|list %}
+      {% set ok = finished|selectattr('status','equalto','success')|list %}
+      {% if finished|length > 0 %}{{ (ok|length / finished|length * 100)|round(0)|int }}%{% else %}—{% endif %}
+    </div>
+    <div class="label">Success Rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="stat-total">{{ runs|length }}</div>
+    <div class="label">Recent Runs</div>
+  </div>
+</div>
+
+<!-- Running jobs pulse strip -->
+<div id="active-strip" style="display:none;margin-bottom:1rem;background:#1e3a5f;border-radius:.5rem;padding:.6rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+  <span style="color:#93c5fd;font-weight:600;font-size:.85rem">● RUNNING</span>
+  <span id="active-names" style="font-size:.85rem;color:#bfdbfe"></span>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <h2 style="font-size:1rem;color:#94a3b8;margin:0">RECENT RUNS</h2>
+    <input id="dash-search" oninput="filterDash(this.value)" placeholder="🔍 Search runs…"
+      style="padding:.3rem .65rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem;width:180px">
+  </div>
+  <table id="dash-table">
+    <thead>
+      <tr><th>#</th><th>Script / Workflow</th><th>Status</th><th>Trigger</th><th>Started</th><th>Duration</th><th></th></tr>
+    </thead>
+    <tbody id="dash-tbody">
+    {% for run in runs %}
+    <tr data-search="{{ (run.script.name if run.script else run.workflow.name if run.workflow else '') | lower }} {{ run.trigger_source | lower }} {{ run.status.value | lower }}">
+      <td>{{ run.id }}</td>
+      <td><a href="/runs/{{ run.id }}">{{ run.script.name if run.script else ('🔀 ' + run.workflow.name if run.workflow else '—') }}</a></td>
+      <td>
+        {% set s = run.status.value if run.status else 'unknown' %}
+        <span class="badge badge-{{ s if s in ['success','failed','running','queued'] else 'default' }}">{{ s }}</span>
+      </td>
+      <td>{{ run.trigger_source or '—' }}</td>
+      <td>{{ run.started_at.strftime('%m/%d %H:%M') if run.started_at else '—' }}</td>
+      <td>{% if run.started_at and run.finished_at %}{{ ((run.finished_at - run.started_at).total_seconds())|round(1) }}s{% else %}—{% endif %}</td>
+      <td><a href="/runs/{{ run.id }}" class="btn btn-sm btn-primary">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if not runs %}
+  <div class="alert alert-info">No runs yet. <a href="/scripts">Add a script</a> and run it.</div>
+  {% endif %}
+</div>
+
+<script>
+const badgeClass = {success:'badge-success', failed:'badge-failed', running:'badge-running', queued:'badge-queued'};
+
+let refreshing = true;
+let interval = null;
+
+function toggleRefresh() {
+  refreshing = !refreshing;
+  document.getElementById('refresh-toggle').textContent = refreshing ? 'Pause' : 'Resume';
+  document.getElementById('refresh-dot').style.background = refreshing ? '#22c55e' : '#475569';
+  document.getElementById('refresh-label').textContent = refreshing ? 'auto-refresh on' : 'paused';
+  if (refreshing) startRefresh(); else clearInterval(interval);
+}
+
+async function fetchStats() {
+  try {
+    const data = await fetch('/_api/dashboard').then(r => r.json());
+
+    // Update stat cards
+    document.getElementById('stat-running').textContent = data.running;
+    document.getElementById('stat-queued').textContent  = data.queued;
+    document.getElementById('stat-rate').textContent    = data.rate != null ? data.rate + '%' : '—';
+    document.getElementById('stat-total').textContent   = data.total;
+
+    // Active strip
+    const strip = document.getElementById('active-strip');
+    if (data.running > 0) {
+      const names = data.rows.filter(r => r.status === 'running').map(r => r.name).join(', ');
+      document.getElementById('active-names').textContent = names;
+      strip.style.display = 'flex';
+    } else {
+      strip.style.display = 'none';
+    }
+
+    // Refresh tbody
+    const tbody = document.getElementById('dash-tbody');
+    tbody.innerHTML = data.rows.map(r => `
+      <tr data-search="${r.name.toLowerCase()} ${r.trigger.toLowerCase()} ${r.status}">
+        <td>${r.id}</td>
+        <td><a href="/runs/${r.id}" style="color:#60a5fa">${r.name}</a></td>
+        <td><span class="badge ${badgeClass[r.status]||'badge-default'}">${r.status}</span></td>
+        <td>${r.trigger}</td>
+        <td>${r.started}</td>
+        <td>${r.duration}</td>
+        <td><a href="/runs/${r.id}" class="btn btn-sm btn-primary">View</a></td>
+      </tr>`).join('');
+
+    // Re-apply search filter
+    const q = document.getElementById('dash-search').value;
+    if (q) filterDash(q);
+
+    // Timestamp
+    const now = new Date();
+    document.getElementById('last-updated').textContent =
+      'updated ' + now.toLocaleTimeString();
+    document.getElementById('refresh-dot').style.background = '#22c55e';
+  } catch(e) {
+    document.getElementById('refresh-dot').style.background = '#ef4444';
+  }
+}
+
+function filterDash(q) {
+  const lq = q.toLowerCase();
+  document.querySelectorAll('#dash-tbody tr').forEach(tr => {
+    tr.style.display = !lq || (tr.dataset.search || '').includes(lq) ? '' : 'none';
+  });
+}
+
+function startRefresh() {
+  fetchStats(); // immediate
+  interval = setInterval(fetchStats, 5000);
+}
+
+startRefresh();
+</script>
+{% endblock %}

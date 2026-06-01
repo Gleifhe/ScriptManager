@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ScriptManager Docs</title>
+<style>
+  :root{
+    --nav-bg:#1a1a2e;--nav-w:260px;--accent:#4f9eff;--accent2:#7c3aed;
+    --bg:#f5f7fa;--card:#fff;--text:#1a1a2e;--muted:#64748b;--border:#e2e8f0;
+    --code-bg:#0f1117;--code-text:#e2e8f0;
+    --success:#22c55e;--danger:#ef4444;--warn:#f59e0b;--info:#3b82f6;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+
+  /* ── Sidebar ── */
+  nav.sidebar{
+    width:var(--nav-w);min-width:var(--nav-w);background:var(--nav-bg);
+    height:100vh;position:sticky;top:0;overflow-y:auto;flex-shrink:0;
+    padding:0 0 2rem;
+  }
+  .nav-brand{
+    display:flex;align-items:center;gap:.6rem;padding:1.25rem 1.2rem;
+    border-bottom:1px solid rgba(255,255,255,.08);text-decoration:none;
+  }
+  .nav-brand .logo{font-size:1.5rem}
+  .nav-brand .name{color:#fff;font-weight:700;font-size:1rem;line-height:1.2}
+  .nav-brand .ver{color:#94a3b8;font-size:.7rem}
+  nav.sidebar section{padding:.6rem 0}
+  nav.sidebar .section-title{
+    color:#475569;font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;
+    padding:.4rem 1.2rem .2rem;
+  }
+  nav.sidebar a{
+    display:flex;align-items:center;gap:.6rem;padding:.42rem 1.2rem;
+    color:#94a3b8;text-decoration:none;font-size:.85rem;border-left:3px solid transparent;
+    transition:all .15s;
+  }
+  nav.sidebar a:hover{color:#fff;background:rgba(255,255,255,.05)}
+  nav.sidebar a.active{color:#fff;border-left-color:var(--accent);background:rgba(79,158,255,.1)}
+  nav.sidebar a .icon{font-size:1rem;width:1.2rem;text-align:center}
+
+  /* ── Main ── */
+  main{flex:1;overflow-x:hidden}
+  .page{display:none;padding:2rem 2.5rem 4rem;max-width:1000px}
+  .page.active{display:block}
+
+  /* ── Typography ── */
+  h1{font-size:2rem;font-weight:800;margin-bottom:.4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+  h2{font-size:1.3rem;font-weight:700;margin:2.5rem 0 .8rem;padding-bottom:.4rem;border-bottom:2px solid var(--border)}
+  h3{font-size:1.05rem;font-weight:600;margin:1.5rem 0 .5rem;color:#334155}
+  h4{font-size:.9rem;font-weight:600;margin:1rem 0 .3rem;color:#475569}
+  p{line-height:1.7;margin-bottom:.9rem;color:#334155}
+  ul,ol{margin:.5rem 0 .9rem 1.4rem;line-height:1.8;color:#334155}
+  li{margin-bottom:.2rem}
+  strong{color:var(--text);font-weight:600}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+
+  /* ── Cards ── */
+  .card{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:1.4rem;margin-bottom:1.2rem}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem}
+  .feature-card{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:1.2rem;border-top:3px solid var(--accent)}
+  .feature-card .icon{font-size:1.8rem;margin-bottom:.5rem}
+  .feature-card h3{margin:0 0 .4rem;font-size:.95rem}
+  .feature-card p{margin:0;font-size:.83rem;color:var(--muted)}
+
+  /* ── Code ── */
+  pre{background:var(--code-bg);color:var(--code-text);border-radius:8px;padding:1.1rem 1.2rem;overflow-x:auto;margin:.6rem 0 1rem;font-size:.82rem;line-height:1.6;position:relative}
+  code{font-family:'Cascadia Code','Fira Code',monospace}
+  p code,li code,td code{background:#e2e8f0;color:#2d3748;padding:.15em .4em;border-radius:4px;font-size:.82em}
+  .copy-btn{position:absolute;top:.5rem;right:.6rem;background:rgba(255,255,255,.1);color:#94a3b8;border:1px solid rgba(255,255,255,.15);border-radius:4px;padding:.2rem .55rem;font-size:.72rem;cursor:pointer;transition:all .15s}
+  .copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+
+  /* ── Badges ── */
+  .badge{display:inline-block;padding:.2em .65em;border-radius:5px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .badge-blue{background:#dbeafe;color:#1e40af}
+  .badge-green{background:#dcfce7;color:#166534}
+  .badge-orange{background:#ffedd5;color:#9a3412}
+  .badge-purple{background:#ede9fe;color:#5b21b6}
+  .badge-gray{background:#f1f5f9;color:#475569}
+  .badge-red{background:#fee2e2;color:#991b1b}
+
+  /* ── Tables ── */
+  .table-wrap{overflow-x:auto;margin:.5rem 0 1.2rem;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  table{width:100%;border-collapse:collapse;background:#fff;font-size:.85rem}
+  th{background:#f8fafc;text-align:left;padding:.65rem 1rem;font-size:.75rem;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border)}
+  td{padding:.65rem 1rem;border-top:1px solid var(--border);vertical-align:top;line-height:1.5}
+  tr:hover td{background:#f8fafc}
+
+  /* ── Callouts ── */
+  .callout{border-left:4px solid;border-radius:0 8px 8px 0;padding:.9rem 1.1rem;margin:1rem 0;display:flex;gap:.7rem;align-items:flex-start}
+  .callout-icon{font-size:1.1rem;flex-shrink:0;margin-top:.05rem}
+  .callout p{margin:0;font-size:.87rem;line-height:1.6}
+  .callout-info{border-color:var(--info);background:#eff6ff}
+  .callout-warn{border-color:var(--warn);background:#fffbeb}
+  .callout-success{border-color:var(--success);background:#f0fdf4}
+  .callout-danger{border-color:var(--danger);background:#fef2f2}
+
+  /* ── Steps ── */
+  .steps{counter-reset:step;list-style:none;margin:0 0 1rem;padding:0}
+  .steps li{counter-increment:step;display:flex;gap:1rem;margin-bottom:1rem;align-items:flex-start}
+  .steps li::before{content:counter(step);background:var(--accent);color:#fff;width:1.7rem;height:1.7rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:.1rem}
+  .steps li .step-body{flex:1}
+  .steps li .step-title{font-weight:600;margin-bottom:.3rem;font-size:.92rem}
+  .steps li p{margin:.2rem 0 0;font-size:.84rem;color:var(--muted)}
+
+  /* ── DAG diagram ── */
+  .dag-wrap{background:var(--code-bg);border-radius:8px;padding:1.5rem;margin:.6rem 0 1rem;overflow-x:auto}
+  .dag-node{display:inline-flex;align-items:center;gap:.4rem;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.3rem .8rem;font-size:.8rem;font-family:monospace}
+  .dag-arrow{color:#4f9eff;margin:0 .2rem;font-size:.9rem}
+  .dag-label{font-size:.72rem;color:#64748b;margin-left:.2rem}
+  .dag-row{display:flex;flex-wrap:wrap;align-items:center;margin:.3rem 0;gap:.3rem}
+
+  /* ── Hero ── */
+  .hero{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);border-radius:12px;padding:2.5rem 2rem;margin-bottom:2rem;color:#fff}
+  .hero h1{-webkit-text-fill-color:#fff;background:none;font-size:2.2rem}
+  .hero .tagline{color:#94a3b8;margin:.4rem 0 1.2rem;font-size:1rem}
+  .hero .pills{display:flex;flex-wrap:wrap;gap:.5rem}
+  .pill{background:rgba(255,255,255,.1);color:#e2e8f0;border-radius:20px;padding:.25rem .75rem;font-size:.78rem;border:1px solid rgba(255,255,255,.15)}
+
+  /* ── Responsive ── */
+  @media(max-width:720px){
+    nav.sidebar{display:none}
+    .page{padding:1.2rem}
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+<nav class="sidebar">
+  <a class="nav-brand" href="#" onclick="show('home')">
+    <span class="logo">⚙</span>
+    <div><div class="name">ScriptManager</div><div class="ver">v0.1.0 Docs</div></div>
+  </a>
+
+  <section>
+    <div class="section-title">Getting Started</div>
+    <a href="#" class="active" onclick="show('home')"><span class="icon">🏠</span>Overview</a>
+    <a href="#" onclick="show('quickstart')"><span class="icon">🚀</span>Quick Start</a>
+    <a href="#" onclick="show('install')"><span class="icon">📦</span>Installation</a>
+  </section>
+
+  <section>
+    <div class="section-title">Core Concepts</div>
+    <a href="#" onclick="show('groups')"><span class="icon">📁</span>Groups &amp; Scripts</a>
+    <a href="#" onclick="show('runmodes')"><span class="icon">▶</span>Run Modes</a>
+    <a href="#" onclick="show('workflows')"><span class="icon">🔀</span>DAG Workflows</a>
+    <a href="#" onclick="show('schedules')"><span class="icon">🕐</span>Scheduling</a>
+  </section>
+
+  <section>
+    <div class="section-title">Operations</div>
+    <a href="#" onclick="show('cli')"><span class="icon">💻</span>CLI Reference</a>
+    <a href="#" onclick="show('api')"><span class="icon">🔌</span>REST API</a>
+    <a href="#" onclick="show('reports')"><span class="icon">📊</span>Reports &amp; Logs</a>
+    <a href="#" onclick="show('notifications')"><span class="icon">🔔</span>Notifications</a>
+  </section>
+
+  <section>
+    <div class="section-title">Windows Services</div>
+    <a href="#" onclick="show('winsvc')"><span class="icon">🪟</span>Main Service</a>
+    <a href="#" onclick="show('alwayson')"><span class="icon">♾</span>Always-On Scripts</a>
+  </section>
+
+  <section>
+    <div class="section-title">Reference</div>
+    <a href="#" onclick="show('scheduler-review')"><span class="icon">📋</span>Scheduler Review</a>
+    <a href="#" onclick="show('config')"><span class="icon">⚙</span>Configuration</a>
+    <a href="#" onclick="show('datamodel')"><span class="icon">🗄</span>Data Model</a>
+  </section>
+</nav>
+
+<!-- ═══════════════════════════════ CONTENT ═══════════════════════════════ -->
+<main>
+
+<!-- ─────────────── HOME ─────────────── -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <h1>⚙ ScriptManager</h1>
+    <p class="tagline">Orchestration service for Python AI &amp; automation scripts</p>
+    <div class="pills">
+      <span class="pill">FastAPI</span><span class="pill">APScheduler</span>
+      <span class="pill">SQLite</span><span class="pill">HTMX</span>
+      <span class="pill">Windows Service</span>
+      <span class="pill">Celery (optional)</span><span class="pill">Redis (optional)</span>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="feature-card"><div class="icon">📁</div><h3>Groups &amp; Folders</h3><p>Organise scripts into nested groups/folders by team, purpose, or environment.</p></div>
+    <div class="feature-card" style="border-color:#7c3aed"><div class="icon">▶</div><h3>4 Run Modes</h3><p>One-shot, scheduled batch, continuous re-run, and always-on Windows service.</p></div>
+    <div class="feature-card" style="border-color:#22c55e"><div class="icon">🔀</div><h3>DAG Workflows</h3><p>Chain scripts with parallel fan-out, conditional edges, retries, and joins.</p></div>
+    <div class="feature-card" style="border-color:#f59e0b"><div class="icon">📊</div><h3>Detailed Reports</h3><p>Live log streaming, per-script history, p50/p95 durations, export to CSV.</p></div>
+    <div class="feature-card" style="border-color:#ef4444"><div class="icon">🔔</div><h3>Alerts</h3><p>Email (SMTP) + Teams + Slack webhooks on failure with per-job routing.</p></div>
+    <div class="feature-card" style="border-color:#06b6d4"><div class="icon">🪟</div><h3>Windows Services</h3><p>Run the orchestrator as a Windows service; wrap any script as always-on.</p></div>
+  </div>
+
+  <h2>Architecture</h2>
+  <div class="card">
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│   Browser (HTMX Dashboard)  ←→  FastAPI  (REST + WebSocket)    │
+│                                      │                          │
+│   CLI (scriptmgr …)  ─────────→  Orchestrator Core             │
+│                                  ├─ APScheduler (triggers)      │
+│                                  ├─ Workflow Engine (DAG)        │
+│                                  ├─ Run Registry (SQLite)        │
+│                                  └─ Notifier (email/Teams/Slack) │
+│                                         │                        │
+│                                   Redis Broker                   │
+│                           ┌────────────┴────────────┐           │
+│                     Celery Worker              Celery Worker      │
+│                   (runs scripts,            (remote — optional)  │
+│                    streams logs)                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Plus: ScriptManager Windows Service (NSSM) — hosts API + scheduler + worker
+Plus: Per-script Windows Service wrappers with heartbeat monitoring</code></pre>
+  </div>
+
+  <h2>Project Layout</h2>
+  <div class="card">
+<pre><code>d:\repos\Test\
+├── src\scriptmgr\
+│   ├── core\          ← config, db, ORM models, Pydantic schemas
+│   ├── executor\      ← Celery app + subprocess runner + tasks
+│   ├── scheduler\     ← APScheduler integration
+│   ├── workflows\     ← DAG model + engine
+│   ├── notifications\ ← email + Teams/Slack adapters
+│   ├── service\       ← Windows service installer + always-on generator
+│   ├── api\           ← FastAPI app + routers + WebSocket
+│   ├── cli\           ← Typer CLI
+│   └── web\           ← HTMX templates
+├── alembic\           ← DB migrations
+├── samples\           ← hello.py + sample_workflow.json
+├── docs\              ← this docs site
+└── tests\             ← unit + integration tests</code></pre>
+  </div>
+</div>
+
+<!-- ─────────────── QUICK START ─────────────── -->
+<div class="page" id="page-quickstart">
+  <h1>Quick Start</h1>
+  <p class="subtitle">Get ScriptManager running in 5 minutes.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Python 3.10 or later</li>
+    <li><em>(Optional)</em> Redis &mdash; only required for <strong>distributed mode</strong>. Use <a href="https://www.memurai.com/" target="_blank">Memurai</a> on Windows or Docker: <code>docker run -d -p 6379:6379 redis:7</code></li>
+    <li><em>(Optional)</em> NSSM for Windows service features &mdash; <a href="https://nssm.cc" target="_blank">nssm.cc</a></li>
+  </ul>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">⚡</span>
+    <div>
+      <strong>One-click install (workstation):</strong> from a PowerShell prompt run
+      <code>.\bootstrap.ps1</code> &mdash; it creates a venv, installs the package
+      (inproc mode, no Redis), and initializes the DB. Skip to step 4 below.
+    </div>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <div class="step-title">Create a virtual environment &amp; install</div>
+<pre><code>cd d:\repos\Test
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# Workstation (in-process) — the default. No Redis, no Celery.
+pip install -e ".[dev]"
+
+# OR distributed mode (multi-host, requires Redis):
+# pip install -e ".[dev,celery]"</code></pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Configure</div>
+<pre><code>Copy-Item .env.example .env
+notepad .env</code></pre>
+        <p>Defaults work out of the box for workstation use (SQLite, port 8765, inproc executor).
+        Set <code>SCRIPTMGR_EXECUTOR_MODE=celery</code> only if you want distributed workers.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Initialise the database</div>
+<pre><code>scriptmgr db init</code></pre>
+        <p>Creates <code>data\scriptmgr.db</code> with all tables.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Start the server</div>
+<pre><code># Workstation / inproc mode — single command, no separate worker needed
+scriptmgr serve
+
+# Distributed / celery mode — also start a worker in a second terminal
+# scriptmgr worker</code></pre>
+        <p>Dashboard: <strong>http://localhost:8765</strong> &nbsp;|&nbsp; API docs: <strong>http://localhost:8765/api/docs</strong></p>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Register a group and script, then run it</div>
+<pre><code>scriptmgr group add "AI Workflows" -d "My AI pipeline scripts"
+scriptmgr script add .\samples\hello.py --group 1 --name hello
+scriptmgr script run hello --watch</code></pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Schedule it (every hour)</div>
+<pre><code>scriptmgr schedule add --type cron --expr "0 * * * *" --script 1</code></pre>
+      </div>
+    </li>
+  </ol>
+
+  <div class="callout callout-success">
+    <span class="callout-icon">✅</span>
+    <p>That's it! The dashboard at <strong>http://localhost:8765</strong> shows live run status, logs, and history for all your scripts.</p>
+  </div>
+</div>
+
+<!-- ─────────────── INSTALLATION ─────────────── -->
+<div class="page" id="page-install">
+  <h1>Installation</h1>
+  <p class="subtitle">Detailed setup for development and production.</p>
+
+  <h2>One-click install (workstation)</h2>
+  <p>From a PowerShell prompt at the repo root:</p>
+<pre><code># Workstation / single-PC (default — no Redis, no Celery)
+.\bootstrap.ps1
+
+# Add Celery + Redis support for distributed mode
+.\bootstrap.ps1 -Celery</code></pre>
+  <p>The script creates <code>.venv\</code>, installs the package in editable mode,
+     copies <code>.env.example</code> → <code>.env</code>, and initialises the database.</p>
+
+  <h2>Manual install</h2>
+<pre><code>cd d:\repos\Test
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+pip install -e .                 # core only — inproc executor
+pip install -e ".[dev]"          # + pytest, ruff, mypy
+pip install -e ".[celery]"       # + celery & redis (distributed mode)
+pip install -e ".[windows]"      # + pywin32 (Windows service)
+pip install -e ".[dev,celery,windows]"   # everything</code></pre>
+
+  <h2>Executor Modes</h2>
+  <p>ScriptManager ships with two interchangeable executor backends. Choose with
+     <code>SCRIPTMGR_EXECUTOR_MODE</code> in your <code>.env</code>:</p>
+  <table>
+    <thead><tr><th></th><th><code>inproc</code> (default)</th><th><code>celery</code></th></tr></thead>
+    <tbody>
+      <tr><td><strong>Best for</strong></td><td>Single workstation / dev box</td><td>Multiple hosts / heavy parallel load</td></tr>
+      <tr><td><strong>Dependencies</strong></td><td>Python only</td><td>Python + Redis (or Memurai)</td></tr>
+      <tr><td><strong>Worker process</strong></td><td>None &mdash; runs inside API server via a thread pool</td><td>Separate <code>scriptmgr worker</code> process(es)</td></tr>
+      <tr><td><strong>Log streaming</strong></td><td>In-process pub/sub</td><td>Redis pub/sub</td></tr>
+      <tr><td><strong>Install extra</strong></td><td>none</td><td><code>pip install -e ".[celery]"</code></td></tr>
+    </tbody>
+  </table>
+  <p>Both modes use the same DB, same API, same UI &mdash; you can switch by changing one env var.</p>
+
+  <h2>Configuration File (<code>.env</code>)</h2>
+  <p>Copy <code>.env.example</code> to <code>.env</code> and adjust:</p>
+<pre><code>SCRIPTMGR_DATA_DIR=./data           # where DB, logs, artifacts live
+SCRIPTMGR_DB_URL=sqlite:///./data/scriptmgr.db
+SCRIPTMGR_HOST=127.0.0.1
+SCRIPTMGR_PORT=8765
+SCRIPTMGR_LOG_LEVEL=INFO
+
+# Executor: 'inproc' (default, workstation) or 'celery' (distributed)
+SCRIPTMGR_EXECUTOR_MODE=inproc
+SCRIPTMGR_WORKER_CONCURRENCY=4
+
+# Redis — only used when SCRIPTMGR_EXECUTOR_MODE=celery
+SCRIPTMGR_BROKER_URL=redis://localhost:6379/0
+SCRIPTMGR_RESULT_BACKEND=redis://localhost:6379/1
+
+# Notifications (optional — leave blank to disable)
+SCRIPTMGR_SMTP_HOST=smtp.yourcompany.com
+SCRIPTMGR_SMTP_PORT=587
+SCRIPTMGR_SMTP_USER=alerts@yourcompany.com
+SCRIPTMGR_SMTP_PASSWORD=secret
+SCRIPTMGR_TEAMS_WEBHOOK=https://outlook.office.com/webhook/...
+SCRIPTMGR_SLACK_WEBHOOK=https://hooks.slack.com/services/...
+
+SCRIPTMGR_LOG_RETENTION_DAYS=30</code></pre>
+
+  <h2>Redis <span style="font-weight:normal;color:#888;font-size:0.7em">(celery mode only)</span></h2>
+  <div class="card-grid">
+    <div class="card"><h3>Memurai (recommended for Windows)</h3><p>Redis-compatible, Windows-native, free for dev. Download from <a href="https://www.memurai.com" target="_blank">memurai.com</a>. Runs as a Windows service automatically.</p></div>
+    <div class="card"><h3>Docker</h3><pre><code>docker run -d -p 6379:6379 redis:7</code></pre></div>
+    <div class="card"><h3>WSL2</h3><pre><code>sudo apt install redis-server
+redis-server</code></pre></div>
+  </div>
+
+  <h2>Database Migrations (Alembic)</h2>
+<pre><code># First-time (dev): creates all tables directly
+scriptmgr db init
+
+# Generate a migration after model changes
+alembic revision --autogenerate -m "add my column"
+alembic upgrade head</code></pre>
+
+  <h2>Running Tests</h2>
+<pre><code>pytest tests/unit/ -v</code></pre>
+  <p>Unit tests use an in-memory SQLite DB and mock out Redis — no dependencies needed.</p>
+</div>
+
+<!-- ─────────────── GROUPS & SCRIPTS ─────────────── -->
+<div class="page" id="page-groups">
+  <h1>Groups &amp; Scripts</h1>
+  <p class="subtitle">Organise scripts into nested folders.</p>
+
+  <h2>Groups</h2>
+  <p>Groups are folders that organise your scripts. They can be nested (parent → child). Examples: <em>AI/Preprocessing</em>, <em>Reports/Daily</em>, <em>Ops/Monitoring</em>.</p>
+
+<pre><code># Create a top-level group
+scriptmgr group add "AI Workflows" -d "All AI pipeline scripts"
+
+# Create a nested group
+scriptmgr group add "AI/Preprocessing" --parent 1
+
+# List all groups
+scriptmgr group list</code></pre>
+
+  <h2>Scripts</h2>
+  <p>A script registration stores the path to your <code>.py</code> file plus metadata: interpreter, virtual-env, arguments, environment variables, timeout, and tags.</p>
+
+<pre><code># Register a script
+scriptmgr script add .\pipelines\fetch_data.py \
+    --group 1 \
+    --name fetch-data \
+    --interpreter python \
+    --venv .\venvs\pipeline-venv \
+    --timeout 300 \
+    --tags "data,ai,daily" \
+    -d "Fetches raw data from API"
+
+# List scripts (optionally filtered by group)
+scriptmgr script list --group 1
+
+# Update a script
+#  (use PATCH /api/scripts/{id} via the API or re-add)
+
+# Delete
+scriptmgr script delete 3</code></pre>
+
+  <h2>Script Fields Reference</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>path</code></td><td>—</td><td>Path to the <code>.py</code> file (absolute or relative)</td></tr>
+        <tr><td><code>interpreter</code></td><td><code>python</code></td><td>Python executable path (e.g. <code>python3.11</code>)</td></tr>
+        <tr><td><code>venv</code></td><td><code>""</code></td><td>Path to a virtualenv — if set, uses its Python automatically</td></tr>
+        <tr><td><code>args</code></td><td><code>[]</code></td><td>Extra CLI arguments passed to the script</td></tr>
+        <tr><td><code>env</code></td><td><code>{}</code></td><td>Extra environment variables (dict) merged with the process env</td></tr>
+        <tr><td><code>cwd</code></td><td>script directory</td><td>Working directory for the process</td></tr>
+        <tr><td><code>timeout_sec</code></td><td><code>0</code></td><td>Kill the script after this many seconds (<code>0</code> = no limit)</td></tr>
+        <tr><td><code>tags</code></td><td><code>[]</code></td><td>Free-text labels for filtering</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <p><strong>Virtualenv resolution:</strong> If <code>venv</code> is set, ScriptManager automatically uses <code>{venv}\Scripts\python.exe</code> on Windows (or <code>{venv}/bin/python</code> on Linux) regardless of what <code>interpreter</code> says.</p>
+  </div>
+</div>
+
+<!-- ─────────────── RUN MODES ─────────────── -->
+<div class="page" id="page-runmodes">
+  <h1>Run Modes</h1>
+  <p class="subtitle">Four ways to execute your scripts.</p>
+
+  <div class="card-grid">
+    <div class="card" style="border-top:3px solid #4f9eff">
+      <h3>🎯 One-Shot (Manual)</h3>
+      <p>Trigger a script immediately — from the dashboard, CLI, or API. Runs once and stops.</p>
+<pre><code>scriptmgr script run my-script --watch</code></pre>
+    </div>
+    <div class="card" style="border-top:3px solid #7c3aed">
+      <h3>🕐 Scheduled Batch</h3>
+      <p>Run on a cron schedule, fixed interval, or specific date. Each fire creates one run.</p>
+<pre><code># Cron: every day at 2am
+scriptmgr schedule add --type cron \
+  --expr "0 2 * * *" --script 1
+
+# Every 10 minutes
+scriptmgr schedule add --type interval \
+  --expr "600" --script 2
+
+# Once at a specific time
+scriptmgr schedule add --type date \
+  --expr "2026-06-01T09:00:00" --script 3</code></pre>
+    </div>
+    <div class="card" style="border-top:3px solid #22c55e">
+      <h3>🔁 Continuous Re-Run</h3>
+      <p>When the script finishes, automatically re-queue it after a delay. Runs forever until you disable the schedule.</p>
+<pre><code># Restart 10s after completion
+scriptmgr schedule add --type continuous \
+  --expr "10" --rerun-delay 10 --script 4</code></pre>
+    </div>
+    <div class="card" style="border-top:3px solid #f59e0b">
+      <h3>♾ Always-On Service</h3>
+      <p>Wrap the script as a Windows service (NSSM). It starts on boot, auto-restarts on crash, and sends heartbeats to the dashboard.</p>
+<pre><code>scriptmgr always-on install my-watcher \
+  --script .\watchers\watcher.py \
+  --heartbeat 30</code></pre>
+    </div>
+  </div>
+
+  <h2>How Runs Flow</h2>
+  <div class="card">
+<pre><code>Trigger (manual / schedule / workflow)
+    │
+    ▼
+Run record created  [status: QUEUED]
+    │
+    ▼
+Celery task enqueued → Worker picks up
+    │
+    ▼
+status: RUNNING  ─── stdout/stderr → run_logs table + Redis pub/sub
+    │                                         │
+    │                                         ▼
+    │                               WebSocket → Dashboard live log
+    ▼
+status: SUCCESS | FAILED | TIMED_OUT | CANCELLED
+    │
+    ▼
+Notification dispatched (if not SUCCESS)</code></pre>
+  </div>
+
+  <h2>Cancelling a Run</h2>
+<pre><code>scriptmgr run cancel 42
+# or via API:
+# POST /api/runs/42/cancel</code></pre>
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠️</span>
+    <p>Cancel marks the DB record as <code>cancelled</code> immediately. The underlying subprocess may still be running briefly until the worker notices. For hard kills, use the <code>timeout_sec</code> field or NSSM service controls.</p>
+  </div>
+</div>
+
+<!-- ─────────────── WORKFLOWS ─────────────── -->
+<div class="page" id="page-workflows">
+  <h1>DAG Workflows</h1>
+  <p class="subtitle">Chain scripts together with conditional logic, parallel execution, and retries.</p>
+
+  <h2>DAG Structure</h2>
+  <p>A workflow is a JSON document with <strong>nodes</strong> (script references) and <strong>edges</strong> (connections with conditions).</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>nodes[].id</code></td><td>Unique node ID within this workflow (string)</td></tr>
+        <tr><td><code>nodes[].script_id</code></td><td>ID of the registered script to run</td></tr>
+        <tr><td><code>nodes[].retry</code></td><td>Number of retries on failure (default <code>0</code>)</td></tr>
+        <tr><td><code>nodes[].timeout_sec</code></td><td>Node-level timeout override (<code>0</code> = use script default)</td></tr>
+        <tr><td><code>nodes[].label</code></td><td>Human-readable label for diagrams</td></tr>
+        <tr><td><code>edges[].from</code></td><td>Source node ID</td></tr>
+        <tr><td><code>edges[].to</code></td><td>Target node ID</td></tr>
+        <tr><td><code>edges[].on</code></td><td><code>"success"</code> | <code>"failure"</code> | <code>"always"</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Example: AI Pipeline</h2>
+
+  <div class="dag-wrap">
+    <div class="dag-row">
+      <div class="dag-node">📥 fetch</div>
+      <span class="dag-arrow">──success──▶</span>
+      <div class="dag-node">⚙ process</div>
+      <span class="dag-arrow">──success──▶</span>
+      <div class="dag-node">📄 report</div>
+    </div>
+    <div class="dag-row" style="margin-top:.4rem">
+      <span style="color:#64748b;font-size:.78rem;margin-left:4rem">process</span>
+      <span class="dag-arrow" style="color:#ef4444">──failure──▶</span>
+      <div class="dag-node" style="border-color:#ef4444">🔔 notify</div>
+    </div>
+    <div class="dag-row" style="margin-top:.4rem">
+      <span style="color:#64748b;font-size:.78rem;margin-left:8.5rem">report</span>
+      <span class="dag-arrow" style="color:#94a3b8">──always──▶</span>
+      <div class="dag-node">🔔 notify</div>
+      <span class="dag-arrow"> &amp; </span>
+      <div class="dag-node">🧹 cleanup</div>
+    </div>
+  </div>
+
+<pre><code>// samples/sample_workflow.json
+{
+  "nodes": [
+    {"id": "fetch",   "script_id": 1, "label": "Fetch data",     "retry": 1},
+    {"id": "process", "script_id": 2, "label": "Process data"},
+    {"id": "report",  "script_id": 3, "label": "Generate report"},
+    {"id": "notify",  "script_id": 4, "label": "Send notification", "retry": 2},
+    {"id": "cleanup", "script_id": 5, "label": "Cleanup temp files"}
+  ],
+  "edges": [
+    {"from": "fetch",   "to": "process", "on": "success"},
+    {"from": "process", "to": "report",  "on": "success"},
+    {"from": "process", "to": "notify",  "on": "failure"},
+    {"from": "report",  "to": "notify",  "on": "always"},
+    {"from": "report",  "to": "cleanup", "on": "success"}
+  ]
+}</code></pre>
+
+  <h2>Register &amp; Run a Workflow</h2>
+<pre><code># Register from a JSON file
+scriptmgr workflow add .\samples\sample_workflow.json \
+    --group 1 --name "AI Pipeline"
+
+# Run immediately
+scriptmgr workflow run 1
+
+# List workflows
+scriptmgr workflow list
+
+# Schedule it (daily at 6am)
+scriptmgr schedule add --type cron \
+    --expr "0 6 * * *" --workflow 1</code></pre>
+
+  <h2>Execution Semantics</h2>
+  <ul>
+    <li><strong>Parallel fan-out</strong> — nodes with no unsatisfied predecessors run concurrently in a thread pool.</li>
+    <li><strong>Join</strong> — a node fires only when ALL of its predecessors are complete (implicit <code>join: all</code>).</li>
+    <li><strong>Conditional edges</strong> — <code>"on": "success"</code> only fires if the source node exited 0; <code>"on": "failure"</code> fires on non-zero exit; <code>"on": "always"</code> fires regardless.</li>
+    <li><strong>Retries</strong> — each node retries up to <code>retry</code> times before marking failure.</li>
+    <li><strong>Parent run</strong> — each workflow execution has a parent <code>Run</code> record; each node execution is a child <code>Run</code> linked via <code>parent_run_id</code>.</li>
+  </ul>
+</div>
+
+<!-- ─────────────── SCHEDULING ─────────────── -->
+<div class="page" id="page-schedules">
+  <h1>Scheduling</h1>
+  <p class="subtitle">APScheduler-powered triggers persisted to SQLite.</p>
+
+  <h2>Trigger Types</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Type</th><th><code>expression</code> format</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-blue">cron</span></td>
+          <td>Standard 5-field cron: <code>MIN HR DOM MON DOW</code></td>
+          <td><code>"0 2 * * *"</code> — 2am every day</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">interval</span></td>
+          <td>Integer seconds</td>
+          <td><code>"600"</code> — every 10 minutes</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-orange">date</span></td>
+          <td>ISO 8601 datetime string</td>
+          <td><code>"2026-06-01T09:00:00"</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">continuous</span></td>
+          <td>Integer seconds delay after completion</td>
+          <td><code>"10"</code> — restart 10s after script finishes</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Managing Schedules</h2>
+<pre><code># Add
+scriptmgr schedule add --type cron --expr "0 */6 * * *" --script 2
+
+# List
+scriptmgr schedule list
+
+# Pause / resume via API
+PUT /api/schedules/{id}/disable
+PUT /api/schedules/{id}/enable
+
+# Delete
+scriptmgr schedule delete 5</code></pre>
+
+  <h2>Persistence</h2>
+  <p>Schedules are stored in the SQLite database via APScheduler's <strong>SQLAlchemyJobStore</strong>. They survive process restarts — when the API starts, all enabled schedules are automatically reloaded.</p>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <p><strong>Cron reference:</strong> <code>MIN(0-59) HR(0-23) DOM(1-31) MON(1-12) DOW(0-6, 0=Sunday)</code>. Use <code>*</code> for "every". Example: <code>"30 8 * * 1-5"</code> = 8:30am Monday–Friday.</p>
+  </div>
+</div>
+
+<!-- ─────────────── CLI ─────────────── -->
+<div class="page" id="page-cli">
+  <h1>CLI Reference</h1>
+  <p class="subtitle">Full <code>scriptmgr</code> command reference.</p>
+
+  <h2>Top-Level Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr serve</code></td><td>Start the FastAPI API server + APScheduler</td></tr>
+      <tr><td><code>scriptmgr worker</code></td><td>Start a Celery task worker</td></tr>
+      <tr><td><code>scriptmgr db init</code></td><td>Create all tables in the database</td></tr>
+      <tr><td><code>scriptmgr db reset</code></td><td>Drop and recreate all tables (prompts for confirmation)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Group Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr group list</code></td><td>List all groups in a table</td></tr>
+      <tr><td><code>scriptmgr group add &lt;name&gt; [-d DESC] [-p PARENT_ID]</code></td><td>Create a group</td></tr>
+      <tr><td><code>scriptmgr group delete &lt;id&gt;</code></td><td>Delete a group</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Script Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr script list [-g GROUP_ID]</code></td><td>List scripts</td></tr>
+      <tr><td><code>scriptmgr script add &lt;path&gt; --group &lt;id&gt; [options]</code></td><td>Register a script</td></tr>
+      <tr><td><code>scriptmgr script run &lt;name|id&gt; [--watch]</code></td><td>Trigger a manual run; <code>--watch</code> tails logs</td></tr>
+      <tr><td><code>scriptmgr script delete &lt;id&gt;</code></td><td>Delete a script registration</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Options for <code>script add</code></h4>
+<pre><code>scriptmgr script add &lt;PATH&gt;
+  --group, -g   INT   Group ID (required)
+  --name, -n    STR   Friendly name (default: filename stem)
+  --interpreter STR   Python executable (default: python)
+  --venv        STR   Path to virtualenv
+  --timeout     INT   Timeout seconds (0=none)
+  --tags        STR   Comma-separated tags
+  -d            STR   Description</code></pre>
+
+  <h2>Schedule Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr schedule list</code></td><td>List all schedules</td></tr>
+      <tr><td><code>scriptmgr schedule add --type TYPE --expr EXPR [--script ID | --workflow ID]</code></td><td>Create a schedule</td></tr>
+      <tr><td><code>scriptmgr schedule delete &lt;id&gt;</code></td><td>Delete a schedule</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Run Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr run list [--status STATUS] [--limit N]</code></td><td>List recent runs</td></tr>
+      <tr><td><code>scriptmgr run logs &lt;run_id&gt; [--stream stdout|stderr|system]</code></td><td>Print run logs</td></tr>
+      <tr><td><code>scriptmgr run cancel &lt;run_id&gt;</code></td><td>Mark a run as cancelled</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Workflow Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr workflow list</code></td><td>List workflows</td></tr>
+      <tr><td><code>scriptmgr workflow add &lt;json_file&gt; --group ID --name NAME</code></td><td>Register from DAG JSON</td></tr>
+      <tr><td><code>scriptmgr workflow run &lt;workflow_id&gt;</code></td><td>Trigger workflow immediately</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Service Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr service install [--data-dir PATH]</code></td><td>Install as Windows service (Admin required)</td></tr>
+      <tr><td><code>scriptmgr service start</code></td><td>Start the Windows service</td></tr>
+      <tr><td><code>scriptmgr service stop</code></td><td>Stop the Windows service</td></tr>
+      <tr><td><code>scriptmgr service uninstall</code></td><td>Remove the Windows service</td></tr>
+      <tr><td><code>scriptmgr service status</code></td><td>Show current service status</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Always-On Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>scriptmgr always-on install &lt;name&gt; --script PATH [options]</code></td><td>Generate &amp; install a per-script Windows service</td></tr>
+    </tbody>
+  </table></div>
+<pre><code>scriptmgr always-on install &lt;SERVICE_NAME&gt;
+  --script         STR  Path to the .py script (required)
+  --interpreter    STR  Python executable (default: python)
+  --heartbeat      INT  Heartbeat interval in seconds (default: 60)
+  --heartbeat-url  STR  Override heartbeat endpoint URL
+  --output-dir     STR  Where to write generated files (default: .)
+  --nssm           STR  Path to nssm.exe (default: nssm on PATH)
+  --log-dir        STR  Windows service log directory</code></pre>
+</div>
+
+<!-- ─────────────── API ─────────────── -->
+<div class="page" id="page-api">
+  <h1>REST API</h1>
+  <p class="subtitle">Full OpenAPI spec at <code>http://localhost:8765/api/docs</code>.</p>
+
+  <h2>Base URL</h2>
+  <pre><code>http://localhost:8765/api</code></pre>
+
+  <h2>Groups <span class="badge badge-blue">/api/groups</span></h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/groups/</code></td><td>List all groups</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/groups/</code></td><td>Create a group</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/groups/{id}</code></td><td>Get group by ID</td></tr>
+      <tr><td><span class="badge badge-orange">PATCH</span></td><td><code>/api/groups/{id}</code></td><td>Update a group</td></tr>
+      <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/api/groups/{id}</code></td><td>Delete a group</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Scripts <span class="badge badge-blue">/api/scripts</span></h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/scripts/?group_id=</code></td><td>List scripts (optional group filter)</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/scripts/</code></td><td>Register a script</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/scripts/{id}</code></td><td>Get script</td></tr>
+      <tr><td><span class="badge badge-orange">PATCH</span></td><td><code>/api/scripts/{id}</code></td><td>Update script fields</td></tr>
+      <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/api/scripts/{id}</code></td><td>Delete script registration</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/scripts/{id}/run</code></td><td>Trigger immediate run → returns Run object</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Schedules <span class="badge badge-blue">/api/schedules</span></h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/schedules/</code></td><td>List schedules</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/schedules/</code></td><td>Create &amp; activate a schedule</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/schedules/{id}</code></td><td>Get schedule</td></tr>
+      <tr><td><span class="badge badge-orange">PATCH</span></td><td><code>/api/schedules/{id}/enable</code></td><td>Enable schedule</td></tr>
+      <tr><td><span class="badge badge-orange">PATCH</span></td><td><code>/api/schedules/{id}/disable</code></td><td>Disable schedule</td></tr>
+      <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/api/schedules/{id}</code></td><td>Remove schedule</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Workflows &amp; Runs</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/workflows/{id}/run</code></td><td>Trigger workflow immediately</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/runs/?status=&amp;script_id=&amp;limit=</code></td><td>List runs with filters</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/runs/{id}</code></td><td>Get run detail</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/runs/{id}/logs</code></td><td>Get paginated log lines</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/runs/{id}/cancel</code></td><td>Cancel a queued/running run</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/runs/{id}/stats?script_id=</code></td><td>Script run stats (count, success rate, p50/p95)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>WebSocket — Live Logs</h2>
+<pre><code>ws://localhost:8765/ws/runs/{run_id}/logs</code></pre>
+  <p>Each message is a JSON object: <code>{"stream": "stdout"|"stderr"|"system", "line": "..."}</code></p>
+  <p>The special line <code>"__done__"</code> signals the run has finished. The connection uses Redis pub/sub for real-time delivery, falling back to 1-second DB polling if Redis is unavailable.</p>
+
+  <h2>Services (Heartbeat)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/services/</code></td><td>List all registered always-on services</td></tr>
+      <tr><td><span class="badge badge-blue">POST</span></td><td><code>/api/services/heartbeat</code></td><td>Receive heartbeat ping from a service wrapper</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Heartbeat body</h4>
+<pre><code>{"service_name": "my-watcher", "status": "running", "pid": 12345}</code></pre>
+</div>
+
+<!-- ─────────────── REPORTS ─────────────── -->
+<div class="page" id="page-reports">
+  <h1>Reports &amp; Logs</h1>
+  <p class="subtitle">Detailed visibility into every run.</p>
+
+  <h2>What's Captured Per Run</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Status</strong> — queued → running → success / failed / timed_out / cancelled</li>
+      <li><strong>Timing</strong> — started_at, finished_at, duration</li>
+      <li><strong>Exit code</strong> — exact integer exit code from the process</li>
+      <li><strong>Host &amp; worker</strong> — which machine and Celery worker ran it</li>
+      <li><strong>Full stdout + stderr</strong> — every line captured to <code>run_logs</code> table with timestamps and stream labels</li>
+      <li><strong>Trigger source</strong> — manual / schedule / workflow / cli</li>
+      <li><strong>Parent run</strong> — for workflow node runs, links to the workflow run</li>
+    </ul>
+  </div>
+
+  <h2>Dashboard (Web UI)</h2>
+  <p>Open <strong>http://localhost:8765</strong> to see:</p>
+  <ul>
+    <li>Summary cards: total scripts, groups, running count, recent failure count</li>
+    <li>Recent runs table with live status badges</li>
+    <li>One-click run trigger per script</li>
+    <li>Run detail page with live log streaming (WebSocket)</li>
+  </ul>
+
+  <h2>CLI Log Viewing</h2>
+<pre><code># View all logs for run #42
+scriptmgr run logs 42
+
+# Only stdout
+scriptmgr run logs 42 --stream stdout
+
+# Only stderr
+scriptmgr run logs 42 --stream stderr
+
+# Watch live (blocks until done)
+scriptmgr script run my-script --watch</code></pre>
+
+  <h2>API — Stats Endpoint</h2>
+<pre><code>GET /api/runs/stats?script_id=1
+
+Response:
+{
+  "count": 145,
+  "success_rate": 97.2,
+  "p50_sec": 8,
+  "p95_sec": 34,
+  "last_status": "success"
+}</code></pre>
+
+  <h2>Log Retention</h2>
+  <p>Log rows older than <code>SCRIPTMGR_LOG_RETENTION_DAYS</code> (default 30) are rotated to compressed files in <code>data/logs/archive/</code>. This prevents the SQLite DB from growing unboundedly on long-running systems.</p>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <p>For very verbose scripts, configure a short timeout and redirect large outputs to a file — pass the output path as an arg or env var to your script, then register the output file as an artifact.</p>
+  </div>
+</div>
+
+<!-- ─────────────── NOTIFICATIONS ─────────────── -->
+<div class="page" id="page-notifications">
+  <h1>Notifications</h1>
+  <p class="subtitle">Alerts on failure via email, Teams, and Slack.</p>
+
+  <h2>When Alerts Fire</h2>
+  <p>By default, a notification is dispatched when a run completes with status <code>failed</code> or <code>timed_out</code>. Successful runs do not send alerts (configurable).</p>
+
+  <h2>Email (SMTP)</h2>
+<pre><code># .env
+SCRIPTMGR_SMTP_HOST=smtp.yourcompany.com
+SCRIPTMGR_SMTP_PORT=587
+SCRIPTMGR_SMTP_USER=alerts@yourcompany.com
+SCRIPTMGR_SMTP_PASSWORD=your-password
+SCRIPTMGR_SMTP_FROM=scriptmgr@yourcompany.com</code></pre>
+
+  <p>Email body includes: Run ID, script name, status, exit code, started/finished times, duration, and host.</p>
+
+  <h2>Microsoft Teams</h2>
+<pre><code>SCRIPTMGR_TEAMS_WEBHOOK=https://outlook.office.com/webhook/xxxx/IncomingWebhook/yyyy/zzzz</code></pre>
+  <p>Messages use an <strong>Adaptive Card</strong> format (Teams v1.3) — no third-party SDK required, just a plain HTTPS POST.</p>
+  <p>To get the webhook URL: Teams → Channel → Connectors → Incoming Webhook → Create.</p>
+
+  <h2>Slack</h2>
+<pre><code>SCRIPTMGR_SLACK_WEBHOOK=https://hooks.slack.com/services/T.../B.../xxx</code></pre>
+  <p>To get the webhook URL: <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → Create App → Incoming Webhooks → Activate → Add New Webhook.</p>
+
+  <h2>Notification Content</h2>
+  <div class="card">
+<pre><code>ScriptManager: fetch-data — Run #142 FAILED
+
+Status:    failed
+Exit code: 1
+Duration:  47s
+Host:      WIN-SERVER01</code></pre>
+  </div>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠️</span>
+    <p>Leave <code>SMTP_HOST</code> / <code>TEAMS_WEBHOOK</code> / <code>SLACK_WEBHOOK</code> blank to disable that channel. Notification failures are logged as warnings but do not affect the run status.</p>
+  </div>
+</div>
+
+<!-- ─────────────── WINDOWS SERVICE ─────────────── -->
+<div class="page" id="page-winsvc">
+  <h1>Main Windows Service</h1>
+  <p class="subtitle">Run the entire ScriptManager orchestrator as a Windows service.</p>
+
+  <h2>Overview</h2>
+  <p>The <code>scriptmgr service install</code> command uses <strong>NSSM</strong> (Non-Sucking Service Manager) to install a Windows service named <code>ScriptManager</code>. This service:</p>
+  <ul>
+    <li>Starts automatically on Windows boot</li>
+    <li>Hosts the FastAPI API server</li>
+    <li>Hosts APScheduler (all enabled schedules fire)</li>
+    <li>Starts a local Celery worker subprocess</li>
+    <li>Rotates logs to <code>data\logs\service-stdout.log</code> and <code>service-stderr.log</code> at 10 MB</li>
+  </ul>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>NSSM on PATH or set <code>NSSM_PATH</code> env var: <a href="https://nssm.cc" target="_blank">nssm.cc</a></li>
+    <li>Redis running (as its own service — Memurai installs this automatically)</li>
+    <li>Run the install commands as <strong>Administrator</strong></li>
+  </ul>
+
+  <h2>Install &amp; Manage</h2>
+<pre><code># Install (run as Administrator)
+scriptmgr service install
+
+# Start
+scriptmgr service start
+
+# Stop
+scriptmgr service stop
+
+# Check status
+scriptmgr service status
+
+# Uninstall
+scriptmgr service uninstall</code></pre>
+
+  <h2>Log Locations</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>File</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td><code>data\logs\service-stdout.log</code></td><td>API + scheduler + worker stdout</td></tr>
+      <tr><td><code>data\logs\service-stderr.log</code></td><td>Errors and tracebacks</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <p>You can also manage the service via <strong>Windows Services</strong> (<code>services.msc</code>) or the NSSM GUI (<code>nssm edit ScriptManager</code>).</p>
+  </div>
+</div>
+
+<!-- ─────────────── ALWAYS-ON ─────────────── -->
+<div class="page" id="page-alwayson">
+  <h1>Always-On Script Services</h1>
+  <p class="subtitle">Wrap any Python script as a supervised Windows service with heartbeat monitoring.</p>
+
+  <h2>Use Case</h2>
+  <p>Some scripts shouldn't be scheduled — they should <em>always be running</em>: file watchers, event listeners, polling loops, local AI inference servers. Wrap them as Windows services so they:</p>
+  <ul>
+    <li>Start automatically on boot</li>
+    <li>Auto-restart if they crash (NSSM supervised)</li>
+    <li>Report a heartbeat to the ScriptManager dashboard every N seconds</li>
+    <li>Show "stale" status on the dashboard if the heartbeat stops</li>
+  </ul>
+
+  <h2>Generate &amp; Install</h2>
+<pre><code># Generate the wrapper + installer, then install as Administrator
+scriptmgr always-on install my-watcher \
+    --script .\watchers\my_watcher.py \
+    --interpreter python \
+    --heartbeat 30 \
+    --output-dir .\services
+
+# This creates two files in .\services:
+#   my-watcher_wrapper.py       ← restarts script + sends heartbeats
+#   install_my-watcher.ps1      ← NSSM install script
+
+# Run as Administrator to install:
+pwsh .\services\install_my-watcher.ps1</code></pre>
+
+  <h2>What Gets Generated</h2>
+  <h3>Wrapper Script (<code>my-watcher_wrapper.py</code>)</h3>
+<pre><code>"""Always-on wrapper — generated by ScriptManager"""
+# Starts your script in a loop (restarts on failure)
+# Sends heartbeat POST to /api/services/heartbeat every 30s
+# Handles graceful shutdown signals</code></pre>
+
+  <h3>NSSM Installer (<code>install_my-watcher.ps1</code>)</h3>
+<pre><code># Registers the wrapper as a Windows service:
+# - Service name: my-watcher
+# - Auto-start on boot
+# - Log rotation at 10 MB
+# - Runs the wrapper with the configured Python interpreter</code></pre>
+
+  <h2>Monitoring in the Dashboard</h2>
+  <p>After registering the script in ScriptManager, the always-on service section of the dashboard shows:</p>
+  <ul>
+    <li>Service name &amp; linked script</li>
+    <li>Current status (<code>running</code>, <code>stopped</code>, <code>unknown</code>, <code>stale</code>)</li>
+    <li>Last heartbeat timestamp</li>
+    <li>Process ID (PID)</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">💡</span>
+    <p>The always-on service must be registered in ScriptManager's DB (via <code>scriptmgr script add</code>) before the heartbeat endpoint recognises it. The service name must match exactly.</p>
+  </div>
+</div>
+
+<!-- ─────────────── SCHEDULER REVIEW ─────────────── -->
+<div class="page" id="page-scheduler-review">
+  <h1>Scheduler Comparison</h1>
+  <p class="subtitle">Best-in-breed evaluation for Python script scheduling.</p>
+
+  <h2>Summary Decision</h2>
+  <div class="callout callout-success">
+    <span class="callout-icon">✅</span>
+    <p><strong>Chosen: APScheduler + Celery.</strong> Pure-Python, embeds directly into FastAPI, persistent via SQLAlchemy, scales to remote workers via Redis. Zero extra infrastructure for scheduling metadata.</p>
+  </div>
+
+  <h2>Options Evaluated</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tool</th><th>Verdict</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>APScheduler + Celery</strong> ✅</td>
+        <td><span class="badge badge-green">Chosen</span></td>
+        <td>Python-native, embeddable, cron/interval/date/custom triggers, SQLAlchemy jobstore, distributed via Redis</td>
+      </tr>
+      <tr>
+        <td><strong>ArcanaDev JAMS</strong></td>
+        <td><span class="badge badge-orange">Consider Later</span></td>
+        <td>Commercial Windows-native enterprise scheduler. Excellent UI, SLA tracking, AD integration, audit. Revisit if you need enterprise compliance at 1000+ jobs.</td>
+      </tr>
+      <tr>
+        <td><strong>Prefect 2/3</strong></td>
+        <td><span class="badge badge-blue">Runner-Up</span></td>
+        <td>Modern Python orchestrator, first-class DAG support, great observability. Consider if DAG complexity grows significantly.</td>
+      </tr>
+      <tr>
+        <td><strong>Apache Airflow</strong></td>
+        <td><span class="badge badge-gray">Overkill</span></td>
+        <td>Heavy: needs separate scheduler + web + workers + Postgres. Linux-leaning. Strong ecosystem but too much ops overhead here.</td>
+      </tr>
+      <tr>
+        <td><strong>Dagster</strong></td>
+        <td><span class="badge badge-gray">Overkill</span></td>
+        <td>Asset-centric, great for data lineage. More opinionated than needed for general script ops.</td>
+      </tr>
+      <tr>
+        <td><strong>Rundeck</strong></td>
+        <td><span class="badge badge-gray">Wrong Stack</span></td>
+        <td>JVM-based, good for ops teams. Not Python-native; adds a JVM dependency.</td>
+      </tr>
+      <tr>
+        <td><strong>Windows Task Scheduler</strong></td>
+        <td><span class="badge badge-red">Too Limited</span></td>
+        <td>No DAGs, no live logs, no API, weak grouping. Adequate for &lt;10 standalone scripts, not for this use case.</td>
+      </tr>
+      <tr>
+        <td><strong>Temporal / Cadence</strong></td>
+        <td><span class="badge badge-gray">Overkill</span></td>
+        <td>Durable workflow engines for long-running sagas. Powerful but heavy and complex to operate.</td>
+      </tr>
+      <tr>
+        <td><strong>Quartz.NET</strong></td>
+        <td><span class="badge badge-red">Wrong Stack</span></td>
+        <td>.NET ecosystem — doesn't apply here.</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <h2>Migration Path</h2>
+  <p>The ScriptManager data model is scheduler-agnostic. If you outgrow APScheduler:</p>
+  <ol>
+    <li>Export schedules and workflows from the SQLite DB.</li>
+    <li>Swap <code>src/scriptmgr/scheduler/apscheduler.py</code> for a new adapter module (Prefect flows, JAMS jobs).</li>
+    <li>The API, CLI, reports, and Windows service layers are unaffected.</li>
+  </ol>
+</div>
+
+<!-- ─────────────── CONFIGURATION ─────────────── -->
+<div class="page" id="page-config">
+  <h1>Configuration Reference</h1>
+  <p class="subtitle">All settings via environment variables or <code>.env</code> file.</p>
+  <p>All variables are prefixed with <code>SCRIPTMGR_</code>.</p>
+
+  <div class="table-wrap"><table>
+    <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>DATA_DIR</code></td><td><code>./data</code></td><td>Root directory for DB, logs, artifacts</td></tr>
+      <tr><td><code>DB_URL</code></td><td><code>sqlite:///./data/scriptmgr.db</code></td><td>SQLAlchemy DB URL (SQLite or PostgreSQL)</td></tr>
+      <tr><td><code>HOST</code></td><td><code>127.0.0.1</code></td><td>API listen host</td></tr>
+      <tr><td><code>PORT</code></td><td><code>8765</code></td><td>API listen port</td></tr>
+      <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code></td><td>DEBUG / INFO / WARNING / ERROR</td></tr>
+      <tr><td><code>BROKER_URL</code></td><td><code>redis://localhost:6379/0</code></td><td>Celery broker (Redis)</td></tr>
+      <tr><td><code>RESULT_BACKEND</code></td><td><code>redis://localhost:6379/1</code></td><td>Celery result backend</td></tr>
+      <tr><td><code>WORKER_CONCURRENCY</code></td><td><code>4</code></td><td>Celery worker concurrency (max parallel tasks)</td></tr>
+      <tr><td><code>SMTP_HOST</code></td><td><code>""</code></td><td>SMTP server hostname (blank = email disabled)</td></tr>
+      <tr><td><code>SMTP_PORT</code></td><td><code>587</code></td><td>SMTP port</td></tr>
+      <tr><td><code>SMTP_USER</code></td><td><code>""</code></td><td>SMTP auth username</td></tr>
+      <tr><td><code>SMTP_PASSWORD</code></td><td><code>""</code></td><td>SMTP auth password</td></tr>
+      <tr><td><code>SMTP_FROM</code></td><td><code>scriptmgr@localhost</code></td><td>From address for alert emails</td></tr>
+      <tr><td><code>TEAMS_WEBHOOK</code></td><td><code>""</code></td><td>Teams Incoming Webhook URL (blank = disabled)</td></tr>
+      <tr><td><code>SLACK_WEBHOOK</code></td><td><code>""</code></td><td>Slack Incoming Webhook URL (blank = disabled)</td></tr>
+      <tr><td><code>LOG_RETENTION_DAYS</code></td><td><code>30</code></td><td>Days to keep run log rows in DB before archiving</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Switching to PostgreSQL</h2>
+<pre><code>SCRIPTMGR_DB_URL=postgresql+psycopg2://user:pass@localhost/scriptmgr</code></pre>
+  <p>Then run <code>alembic upgrade head</code> to apply migrations. No other changes needed.</p>
+</div>
+
+<!-- ─────────────── DATA MODEL ─────────────── -->
+<div class="page" id="page-datamodel">
+  <h1>Data Model</h1>
+  <p class="subtitle">SQLite (or PostgreSQL) schema — managed by Alembic.</p>
+
+  <h2>Entity Diagram</h2>
+  <div class="card">
+<pre><code>groups (id, name, description, parent_id, created_at)
+  │
+  ├──◄ scripts (id, group_id, name, path, interpreter, venv,
+  │            args[], env{}, cwd, timeout_sec, tags[], created_at)
+  │       │
+  │       ├──◄ schedules (id, script_id, workflow_id, trigger_type,
+  │       │               expression, enabled, rerun_delay_sec)
+  │       │
+  │       ├──◄ runs (id, script_id, workflow_id, parent_run_id,
+  │       │          trigger_source, status, started_at, finished_at,
+  │       │          exit_code, host, worker, created_at)
+  │       │       │
+  │       │       └──◄ run_logs (id, run_id, ts, stream, line)
+  │       │
+  │       └──◄ services (id, script_id, service_name, status,
+  │                      last_heartbeat, heartbeat_interval_sec, pid)
+  │
+  └──◄ workflows (id, group_id, name, description, dag{})
+          │
+          └──◄ schedules (workflow_id)</code></pre>
+  </div>
+
+  <h2>Key Tables</h2>
+
+  <h3>runs</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>status</code></td><td>enum</td><td>queued | running | success | failed | cancelled | timed_out</td></tr>
+      <tr><td><code>trigger_source</code></td><td>string</td><td>manual | schedule | workflow | workflow-retry | cli</td></tr>
+      <tr><td><code>parent_run_id</code></td><td>FK runs</td><td>Set for workflow node runs; NULL for top-level runs</td></tr>
+      <tr><td><code>exit_code</code></td><td>int</td><td>Process exit code; NULL while running; -9 for timeout kill</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>run_logs</h3>
+  <p>Each row is one line of output. <code>stream</code> is <code>stdout</code>, <code>stderr</code>, or <code>system</code> (internal ScriptManager messages).</p>
+
+  <h3>workflows.dag</h3>
+  <p>Stored as JSON. Structure:</p>
+<pre><code>{
+  "nodes": [
+    {"id": "n1", "script_id": 1, "retry": 0, "timeout_sec": 0, "label": "Step 1"}
+  ],
+  "edges": [
+    {"from": "n1", "to": "n2", "on": "success"}
+  ]
+}</code></pre>
+</div>
+
+</main>
+
+<script>
+// Copy buttons
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'Copy';
+  btn.onclick = () => {
+    navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText);
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  };
+  pre.appendChild(btn);
+});
+
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav.sidebar a').forEach(a => a.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  event.currentTarget.classList.add('active');
+  window.scrollTo(0,0);
+  return false;
+}
+</script>
+</body>
+</html>

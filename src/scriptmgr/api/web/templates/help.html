@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% set active = 'help' %}
+{% block title %}Documentation — ScriptManager{% endblock %}
+{% block content %}
+<style>
+  .doc-section { margin-bottom: 2.5rem; }
+  .doc-section h2 { font-size: 1.2rem; color: #f1f5f9; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #334155; }
+  .doc-section h3 { font-size: 1rem; color: #60a5fa; margin: 1.25rem 0 .5rem; }
+  .doc-section p, .doc-section li { color: #94a3b8; line-height: 1.75; font-size: .9rem; }
+  .doc-section ul, .doc-section ol { margin-left: 1.25rem; margin-bottom: .75rem; }
+  .doc-section li { margin-bottom: .3rem; }
+  .doc-toc { background: #1e293b; border-radius: .5rem; padding: 1rem 1.25rem; margin-bottom: 2rem; display: inline-block; min-width: 260px; }
+  .doc-toc h4 { color: #94a3b8; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .6rem; }
+  .doc-toc a { display: block; color: #60a5fa; font-size: .875rem; padding: .2rem 0; text-decoration: none; }
+  .doc-toc a:hover { color: #93c5fd; }
+  .step-box { background: #0f172a; border-left: 3px solid #3b82f6; border-radius: 0 .4rem .4rem 0; padding: .75rem 1rem; margin: .5rem 0; font-size: .875rem; color: #e2e8f0; }
+  .step-num { display: inline-block; background: #3b82f6; color: #fff; border-radius: 50%; width: 1.4rem; height: 1.4rem; text-align: center; line-height: 1.4rem; font-size: .75rem; font-weight: 700; margin-right: .5rem; }
+  .lang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .75rem; margin: .75rem 0; }
+  .lang-card { background: #0f172a; border: 1px solid #334155; border-radius: .4rem; padding: .75rem 1rem; }
+  .lang-card .ext { font-family: monospace; font-size: .85rem; color: #60a5fa; font-weight: 700; }
+  .lang-card .runs-as { font-size: .8rem; color: #94a3b8; margin-top: .25rem; }
+  code { background: #0f172a; color: #60a5fa; padding: .15em .45em; border-radius: .25rem; font-size: .82em; font-family: monospace; }
+  .warn-box { background: #451a03; border-left: 3px solid #f59e0b; border-radius: 0 .4rem .4rem 0; padding: .75rem 1rem; margin: .75rem 0; font-size: .875rem; color: #fde68a; }
+  .ok-box { background: #052e16; border-left: 3px solid #22c55e; border-radius: 0 .4rem .4rem 0; padding: .75rem 1rem; margin: .75rem 0; font-size: .875rem; color: #86efac; }
+  table.doc-table { width: 100%; border-collapse: collapse; font-size: .875rem; margin: .75rem 0 1rem; }
+  table.doc-table th { text-align: left; padding: .5rem .75rem; color: #64748b; border-bottom: 1px solid #334155; font-weight: 600; font-size: .8rem; text-transform: uppercase; }
+  table.doc-table td { padding: .5rem .75rem; border-bottom: 1px solid #1e293b; color: #94a3b8; vertical-align: top; }
+  table.doc-table td:first-child { color: #e2e8f0; font-weight: 500; }
+</style>
+
+<h1 class="page-title">Documentation &amp; Operations Guide</h1>
+
+<!-- TOC -->
+<div class="doc-toc">
+  <h4>Contents</h4>
+  <a href="#overview">Overview</a>
+  <a href="#quickstart">Quick Start (5 steps)</a>
+  <a href="#groups">1. Groups</a>
+  <a href="#scripts">2. Adding Scripts</a>
+  <a href="#languages">3. Supported Languages</a>
+  <a href="#running">4. Running Scripts</a>
+  <a href="#schedules">5. Schedules</a>
+  <a href="#workflows">6. Workflows (Chaining)</a>
+  <a href="#runs">7. Viewing Run History</a>
+  <a href="#service">8. Windows Service</a>
+  <a href="#api">9. REST API</a>
+  <a href="#troubleshooting">10. Troubleshooting</a>
+</div>
+
+<!-- Overview -->
+<div class="doc-section" id="overview">
+  <h2>Overview</h2>
+  <p>ScriptManager is a local orchestration service running on your workstation. It lets you register, schedule, chain, and monitor scripts written in any language — all from a web browser.</p>
+  <table class="doc-table">
+    <thead><tr><th>Component</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Web UI</td><td>This browser interface — manage everything at <code>http://localhost:8765</code></td></tr>
+      <tr><td>REST API</td><td>JSON API at <code>http://localhost:8765/api</code> — for automation or integration</td></tr>
+      <tr><td>Scheduler</td><td>Fires scripts on cron, interval, or continuous schedules automatically</td></tr>
+      <tr><td>Runner</td><td>Launches your scripts as child processes, captures all output</td></tr>
+      <tr><td>Database</td><td>SQLite at <code>data\scriptmgr.db</code> — stores all config and run history</td></tr>
+      <tr><td>Windows Service</td><td>Keeps everything running after reboot (set up via <code>install-service.ps1</code>)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Quick Start -->
+<div class="doc-section" id="quickstart">
+  <h2>Quick Start — 5 Steps</h2>
+  <div class="step-box"><span class="step-num">1</span> Go to <a href="/groups">Groups</a> → click <strong>+ New Group</strong> → enter a name (e.g. "AI Workflows") → Create</div>
+  <div class="step-box"><span class="step-num">2</span> Go to <a href="/scripts">Scripts</a> → click <strong>+ Add Script</strong> → fill in name, path, and select your group → Add Script</div>
+  <div class="step-box"><span class="step-num">3</span> Click <strong>▶ Run</strong> on your script — optionally add runtime parameters in the dialog → Run Now</div>
+  <div class="step-box"><span class="step-num">4</span> You're taken to the <strong>Run detail page</strong> — watch live output as the script executes</div>
+  <div class="step-box"><span class="step-num">5</span> (Optional) Go to <a href="/schedules">Schedules</a> to set it running automatically on a timer</div>
+</div>
+
+<!-- Groups -->
+<div class="doc-section" id="groups">
+  <h2>1. Groups</h2>
+  <p>Groups are folders that organise your scripts. Every script must belong to a group.</p>
+  <h3>Creating a group</h3>
+  <ol>
+    <li>Click <strong>Groups</strong> in the left sidebar</li>
+    <li>Click <strong>+ New Group</strong></li>
+    <li>Enter a <strong>Name</strong> (required) and optional description</li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+  <h3>Example groups</h3>
+  <ul>
+    <li>AI Workflows</li>
+    <li>Data Pipelines</li>
+    <li>Maintenance &amp; Cleanup</li>
+    <li>Reports</li>
+    <li>DevOps</li>
+  </ul>
+  <div class="warn-box">⚠ Deleting a group also deletes all scripts inside it and their run history.</div>
+</div>
+
+<!-- Scripts -->
+<div class="doc-section" id="scripts">
+  <h2>2. Adding Scripts</h2>
+  <p>A "script" is any executable file on disk — Python, PowerShell, Batch, Go, or a compiled binary.</p>
+  <h3>Fields</h3>
+  <table class="doc-table">
+    <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>Name</td><td>Yes</td><td>Display name — e.g. "Daily Report"</td></tr>
+      <tr><td>Group</td><td>Yes</td><td>Which folder this script belongs to</td></tr>
+      <tr><td>Script / Executable path</td><td>Yes</td><td>Full path on disk — e.g. <code>C:\scripts\report.py</code></td></tr>
+      <tr><td>Language / Type</td><td>No</td><td>Leave as <strong>Auto-detect</strong> — picks up from file extension. Override only if needed.</td></tr>
+      <tr><td>Default args</td><td>No</td><td>Arguments always passed to the script. Supports quoted values: <code>--env prod "my folder"</code></td></tr>
+      <tr><td>Timeout</td><td>No</td><td>Kill script after N seconds. 0 = no limit.</td></tr>
+      <tr><td>Description</td><td>No</td><td>Notes shown in the scripts list</td></tr>
+    </tbody>
+  </table>
+  <h3>Path tips</h3>
+  <ul>
+    <li>Use the full absolute path: <code>C:\Users\you\scripts\myscript.py</code></li>
+    <li>UNC paths work too: <code>\\server\share\scripts\tool.exe</code></li>
+    <li>The script does not need to be inside the ScriptManager folder</li>
+  </ul>
+</div>
+
+<!-- Languages -->
+<div class="doc-section" id="languages">
+  <h2>3. Supported Languages &amp; Auto-Detection</h2>
+  <p>ScriptManager detects the right way to run your script from its file extension. You never need to type <code>python</code> or <code>powershell</code> manually.</p>
+  <div class="lang-grid">
+    <div class="lang-card"><div class="ext">.py</div><div class="runs-as">Python interpreter</div></div>
+    <div class="lang-card"><div class="ext">.ps1</div><div class="runs-as">powershell.exe -ExecutionPolicy Bypass</div></div>
+    <div class="lang-card"><div class="ext">.bat / .cmd</div><div class="runs-as">cmd.exe /c</div></div>
+    <div class="lang-card"><div class="ext">.go</div><div class="runs-as">go run</div></div>
+    <div class="lang-card"><div class="ext">.exe</div><div class="runs-as">Direct execution</div></div>
+    <div class="lang-card"><div class="ext">(no extension)</div><div class="runs-as">Direct execution</div></div>
+  </div>
+  <h3>Overriding the language</h3>
+  <p>Use the <strong>Language / Type</strong> dropdown when adding a script to force a specific runner. For example, select <strong>Python</strong> to use a specific virtual environment's Python instead of the system default.</p>
+  <div class="ok-box">✓ You only need to enter the script name and path — ScriptManager handles the rest.</div>
+</div>
+
+<!-- Running -->
+<div class="doc-section" id="running">
+  <h2>4. Running Scripts</h2>
+  <h3>Manual run</h3>
+  <ol>
+    <li>Go to <a href="/scripts">Scripts</a></li>
+    <li>Click <strong>▶ Run</strong> next to a script</li>
+    <li>A dialog appears — optionally enter <strong>runtime parameters</strong> (extra args for this run only)</li>
+    <li>Click <strong>Run Now</strong> — you're taken to the live log view</li>
+  </ol>
+  <h3>Runtime parameters</h3>
+  <p>Parameters entered in the run dialog are appended to the script's default args:</p>
+  <div class="step-box">
+    Default args: <code>--env prod</code><br>
+    Runtime params: <code>--output C:\results --date 2026-06-01</code><br>
+    Final command: <code>python script.py --env prod --output C:\results --date 2026-06-01</code>
+  </div>
+  <p>Use quotes for values with spaces: <code>--folder "My Documents\Reports"</code></p>
+  <h3>Run modes</h3>
+  <table class="doc-table">
+    <thead><tr><th>Mode</th><th>How to use</th></tr></thead>
+    <tbody>
+      <tr><td>One-shot</td><td>Click ▶ Run — runs once and stops</td></tr>
+      <tr><td>Scheduled</td><td>Add a schedule (cron or interval) — runs automatically</td></tr>
+      <tr><td>Continuous re-run</td><td>Add a schedule with type <strong>continuous</strong> — re-runs automatically after finishing</td></tr>
+      <tr><td>Always-on service</td><td>Use <code>install-service.ps1</code> to wrap the whole server (or individual scripts) as Windows Services</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Schedules -->
+<div class="doc-section" id="schedules">
+  <h2>5. Schedules</h2>
+  <p>Schedules make scripts run automatically without any manual action.</p>
+  <h3>Creating a schedule</h3>
+  <ol>
+    <li>Go to <a href="/schedules">Schedules</a> → click <strong>+ New Schedule</strong></li>
+    <li>Pick a <strong>Trigger Type</strong> and enter the <strong>Expression</strong></li>
+    <li>Select either a <strong>Script</strong> or <strong>Workflow</strong> to run</li>
+    <li>Click <strong>Create</strong></li>
+  </ol>
+  <h3>Trigger types &amp; expressions</h3>
+  <table class="doc-table">
+    <thead><tr><th>Type</th><th>Expression format</th><th>Example</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>cron</td><td>5-field cron</td><td><code>0 * * * *</code></td><td>Every hour on the hour</td></tr>
+      <tr><td>cron</td><td>5-field cron</td><td><code>0 9 * * 1-5</code></td><td>9am Mon-Fri</td></tr>
+      <tr><td>cron</td><td>5-field cron</td><td><code>*/15 * * * *</code></td><td>Every 15 minutes</td></tr>
+      <tr><td>interval</td><td>Seconds</td><td><code>300</code></td><td>Every 5 minutes</td></tr>
+      <tr><td>interval</td><td>Seconds</td><td><code>3600</code></td><td>Every hour</td></tr>
+      <tr><td>continuous</td><td>Seconds (delay after finish)</td><td><code>10</code></td><td>Re-run 10s after completing</td></tr>
+      <tr><td>date</td><td>ISO datetime</td><td><code>2026-12-31T23:59:00</code></td><td>Run once at exact time</td></tr>
+    </tbody>
+  </table>
+  <h3>Managing schedules</h3>
+  <ul>
+    <li>Click <strong>✓ On / ✗ Off</strong> to pause/resume a schedule without deleting it</li>
+    <li>Click <strong>Delete</strong> to remove it permanently</li>
+  </ul>
+</div>
+
+<!-- Workflows -->
+<div class="doc-section" id="workflows">
+  <h2>6. Workflows (Chaining Scripts)</h2>
+  <p>Workflows let you chain multiple scripts together into a pipeline (DAG — Directed Acyclic Graph).</p>
+  <h3>Creating a workflow</h3>
+  <ol>
+    <li>Go to <a href="/workflows">Workflows</a> → click <strong>+ New Workflow</strong></li>
+    <li>Enter a name and select a group → Create</li>
+    <li>Use the <a href="/api/docs" target="_blank">REST API</a> to add nodes (scripts) and edges (connections) to the DAG</li>
+  </ol>
+  <h3>DAG structure</h3>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    Script A → Script B → Script C &nbsp;&nbsp; (sequential)<br>
+    Script A → Script B &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (parallel fan-out)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ Script C<br>
+    Script B + Script C → Script D &nbsp; (join / merge)
+  </div>
+  <h3>Edge conditions</h3>
+  <table class="doc-table">
+    <thead><tr><th>Condition</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>success</code></td><td>Only proceed if the previous script exited with code 0</td></tr>
+      <tr><td><code>failure</code></td><td>Only proceed if the previous script failed</td></tr>
+      <tr><td><code>always</code></td><td>Always proceed regardless of exit code</td></tr>
+    </tbody>
+  </table>
+  <p>Workflows can also be scheduled — add a schedule and target the workflow instead of a single script.</p>
+</div>
+
+<!-- Runs -->
+<div class="doc-section" id="runs">
+  <h2>7. Viewing Run History &amp; Logs</h2>
+  <h3>Run list</h3>
+  <p>Go to <a href="/runs">Runs</a> to see the last 100 runs across all scripts and workflows.</p>
+  <h3>Run detail page</h3>
+  <p>Click <strong>Logs</strong> on any run to see:</p>
+  <ul>
+    <li>Status, start time, duration, exit code</li>
+    <li>Any runtime parameters that were passed</li>
+    <li>Full stdout and stderr output (stderr shown in red)</li>
+  </ul>
+  <h3>Status meanings</h3>
+  <table class="doc-table">
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge" style="background:#312e81;color:#c4b5fd">queued</span></td><td>Waiting to start — in the thread pool queue</td></tr>
+      <tr><td><span class="badge" style="background:#1e3a5f;color:#93c5fd">running</span></td><td>Currently executing</td></tr>
+      <tr><td><span class="badge" style="background:#14532d;color:#86efac">success</span></td><td>Finished with exit code 0</td></tr>
+      <tr><td><span class="badge" style="background:#450a0a;color:#fca5a5">failed</span></td><td>Finished with non-zero exit code</td></tr>
+      <tr><td><span class="badge" style="background:#334155;color:#cbd5e1">timed_out</span></td><td>Killed because it exceeded the timeout setting</td></tr>
+      <tr><td><span class="badge" style="background:#334155;color:#cbd5e1">cancelled</span></td><td>Manually stopped</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Service -->
+<div class="doc-section" id="service">
+  <h2>8. Windows Service (Auto-start on Boot)</h2>
+  <p>ScriptManager is installed as a Windows Service called <strong>ScriptManager</strong> so it starts automatically when Windows boots.</p>
+  <h3>Service management</h3>
+  <table class="doc-table">
+    <thead><tr><th>Action</th><th>PowerShell command</th><th>GUI alternative</th></tr></thead>
+    <tbody>
+      <tr><td>Check status</td><td><code>Get-Service ScriptManager</code></td><td>Open services.msc</td></tr>
+      <tr><td>Stop</td><td><code>Stop-Service ScriptManager</code></td><td>Right-click → Stop</td></tr>
+      <tr><td>Start</td><td><code>Start-Service ScriptManager</code></td><td>Right-click → Start</td></tr>
+      <tr><td>Restart</td><td><code>Restart-Service ScriptManager</code></td><td>Right-click → Restart</td></tr>
+    </tbody>
+  </table>
+  <h3>Service logs</h3>
+  <p>The service writes all output to:</p>
+  <ul>
+    <li><code>d:\repos\Test\data\logs\service-stdout.log</code> — normal output</li>
+    <li><code>d:\repos\Test\data\logs\service-stderr.log</code> — errors</li>
+  </ul>
+  <h3>Re-installing the service</h3>
+  <p>If you move the repo or update Python, run this in an <strong>Administrator</strong> PowerShell:</p>
+  <div class="step-box"><code>cd d:\repos\Test<br>.\install-service.ps1</code></div>
+</div>
+
+<!-- API -->
+<div class="doc-section" id="api">
+  <h2>9. REST API</h2>
+  <p>ScriptManager has a full JSON REST API. All UI features are available via API too — useful for integrations, CI/CD pipelines, or calling from other scripts.</p>
+  <h3>Interactive API docs</h3>
+  <p>Open <a href="/api/docs" target="_blank">http://localhost:8765/api/docs</a> — this is Swagger UI where you can explore and call every endpoint directly from the browser.</p>
+  <h3>Key endpoints</h3>
+  <table class="doc-table">
+    <thead><tr><th>Method</th><th>Endpoint</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/api/scripts</code></td><td>List all scripts</td></tr>
+      <tr><td>POST</td><td><code>/api/scripts</code></td><td>Add a new script</td></tr>
+      <tr><td>POST</td><td><code>/api/scripts/{id}/run</code></td><td>Run a script (with optional params)</td></tr>
+      <tr><td>GET</td><td><code>/api/runs</code></td><td>List runs</td></tr>
+      <tr><td>GET</td><td><code>/api/runs/{id}/logs</code></td><td>Get log lines for a run</td></tr>
+      <tr><td>GET</td><td><code>/api/groups</code></td><td>List groups</td></tr>
+      <tr><td>POST</td><td><code>/api/schedules</code></td><td>Create a schedule</td></tr>
+      <tr><td>GET</td><td><code>/api/workflows</code></td><td>List workflows</td></tr>
+    </tbody>
+  </table>
+  <h3>Calling from another script</h3>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    # Python example — trigger a script run via API<br>
+    import requests<br>
+    r = requests.post("http://localhost:8765/api/scripts/1/run",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;json={"params": ["--date", "2026-06-01"]})<br>
+    print(r.json())  # {"run_id": 42}
+  </div>
+</div>
+
+<!-- Troubleshooting -->
+<div class="doc-section" id="troubleshooting">
+  <h2>10. Troubleshooting</h2>
+  <table class="doc-table">
+    <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>Site won't load at localhost:8765</td><td>Run <code>Start-Service ScriptManager</code> or manually: <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve</code></td></tr>
+      <tr><td>Script shows "failed" with exit code 1</td><td>Click Logs on the run — check stderr (red lines) for the actual error message</td></tr>
+      <tr><td>PowerShell script blocked</td><td>The runner uses <code>-ExecutionPolicy Bypass</code> automatically — if still blocked check your script path is correct</td></tr>
+      <tr><td>Script not found error</td><td>Verify the full path in the script settings. Use an absolute path, not relative.</td></tr>
+      <tr><td>Schedule not firing</td><td>Check the schedule is toggled <strong>On</strong>. Verify cron expression at <a href="https://crontab.guru" target="_blank">crontab.guru</a></td></tr>
+      <tr><td>Port 8765 already in use</td><td>Another instance is running. Run <code>Stop-Service ScriptManager</code> then start again.</td></tr>
+      <tr><td>Service won't start after reboot</td><td>Check <code>data\logs\service-stderr.log</code> for errors. Re-run <code>install-service.ps1</code> as Administrator.</td></tr>
+      <tr><td>Database errors</td><td>Run <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe db init</code> to re-initialise</td></tr>
+    </tbody>
+  </table>
+  <h3>Log files</h3>
+  <ul>
+    <li>Service output: <code>d:\repos\Test\data\logs\service-stdout.log</code></li>
+    <li>Service errors: <code>d:\repos\Test\data\logs\service-stderr.log</code></li>
+    <li>Run logs: stored in the database, viewable on each run's detail page</li>
+  </ul>
+</div>
+
+{% endblock %}

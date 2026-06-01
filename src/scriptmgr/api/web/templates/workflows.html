@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set active = 'workflows' %}
+{% block title %}Workflows — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Workflows</h1>
+  <button onclick="document.getElementById('new-wf-form').style.display='block'" class="btn btn-primary">+ New Workflow</button>
+</div>
+
+<div id="new-wf-form" style="display:none" class="card" style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">NEW WORKFLOW</h2>
+  <form method="post" action="/workflows">
+    <div style="display:grid;gap:.75rem;max-width:500px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Name *</label>
+          <input name="name" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        </div>
+        <div>
+          <label style="font-size:.85rem;color:#94a3b8">Group *</label>
+          <select name="group_id" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Description</label>
+        <input name="description" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="button" onclick="document.getElementById('new-wf-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <span id="wf-count" style="font-size:.82rem;color:#64748b">{{ workflows|length }} workflow{{ 's' if workflows|length != 1 else '' }}</span>
+    <input id="wf-search" oninput="filterWorkflows(this.value)" placeholder="🔍 Search workflows…"
+      style="padding:.35rem .65rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem;width:210px">
+  </div>
+  {% if workflows %}
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Group</th><th>Steps</th><th>Description</th><th>Created</th><th></th></tr></thead>
+    <tbody id="wf-tbody">
+    {% for w in workflows %}
+    <tr data-search="{{ w.name|lower }} {{ w.description|lower }} {{ (w.group.name if w.group else '')|lower }}">
+      <td>{{ w.id }}</td>
+      <td><strong>{{ w.name }}</strong></td>
+      <td><span class="badge badge-default">{{ w.group.name if w.group else '—' }}</span></td>
+      <td>{{ w.dag.get('nodes', [])|length }} steps</td>
+      <td style="color:#94a3b8">{{ w.description or '—' }}</td>
+      <td style="color:#94a3b8">{{ w.created_at.strftime('%m/%d/%Y') if w.created_at else '—' }}</td>
+      <td style="display:flex;gap:.4rem">
+        <a href="/workflows/{{ w.id }}/edit" class="btn btn-sm" style="background:#334155;color:#e2e8f0">✏ Build</a>
+        <form method="post" action="/workflows/{{ w.id }}/run">
+          <button class="btn btn-sm btn-primary">▶ Run</button>
+        </form>
+        <form method="post" action="/workflows/{{ w.id }}/delete" onsubmit="return confirm('Delete {{ w.name }}?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No workflows yet. Create one above to chain scripts together.</div>
+  {% endif %}
+</div>
+
+<script>
+function filterWorkflows(q) {
+  const lq = q.toLowerCase();
+  let v = 0;
+  document.querySelectorAll('#wf-tbody tr').forEach(tr => {
+    const show = !lq || (tr.dataset.search||'').includes(lq);
+    tr.style.display = show ? '' : 'none';
+    if (show) v++;
+  });
+  document.getElementById('wf-count').textContent = v + ' workflow' + (v !== 1 ? 's' : '') + (lq ? ' matching' : '');
+}
+</script>
+{% endblock %}

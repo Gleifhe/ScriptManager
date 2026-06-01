@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set active = 'groups' %}
+{% block title %}Groups — ScriptManager{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+  <h1 class="page-title" style="margin:0">Groups</h1>
+  <button onclick="document.getElementById('new-group-form').style.display='block'" class="btn btn-primary">+ New Group</button>
+</div>
+
+<div id="new-group-form" style="display:none" class="card" style="margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">NEW GROUP</h2>
+  <form method="post" action="/groups">
+    <div style="display:grid;gap:.75rem;max-width:500px">
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Name *</label>
+        <input name="name" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8">Description</label>
+        <input name="description" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="button" onclick="document.getElementById('new-group-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+    <span id="group-count" style="font-size:.82rem;color:#64748b">{{ groups|length }} group{{ 's' if groups|length != 1 else '' }}</span>
+    <input id="group-search" oninput="filterGroups(this.value)" placeholder="🔍 Search groups…"
+      style="padding:.35rem .65rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.82rem;width:200px">
+  </div>
+  {% if groups %}
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Description</th><th>Scripts</th><th>Created</th><th></th></tr></thead>
+    <tbody id="groups-tbody">
+    {% for g in groups %}
+    <tr data-search="{{ g.name|lower }} {{ g.description|lower }}">
+      <td>{{ g.id }}</td>
+      <td><strong>{{ g.name }}</strong></td>
+      <td style="color:#94a3b8">{{ g.description or '—' }}</td>
+      <td>{{ g.scripts|length }}</td>
+      <td style="color:#94a3b8">{{ g.created_at.strftime('%m/%d/%Y') if g.created_at else '—' }}</td>
+      <td>
+        <form method="post" action="/groups/{{ g.id }}/delete" onsubmit="return confirm('Delete group {{ g.name }}?')">
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No groups yet. Create one above to start organising your scripts.</div>
+  {% endif %}
+</div>
+
+<script>
+function filterGroups(q) {
+  const lq = q.toLowerCase();
+  let v = 0;
+  document.querySelectorAll('#groups-tbody tr').forEach(tr => {
+    const show = !lq || (tr.dataset.search||'').includes(lq);
+    tr.style.display = show ? '' : 'none';
+    if (show) v++;
+  });
+  document.getElementById('group-count').textContent = v + ' group' + (v !== 1 ? 's' : '') + (lq ? ' matching' : '');
+}
+</script>
+{% endblock %}
