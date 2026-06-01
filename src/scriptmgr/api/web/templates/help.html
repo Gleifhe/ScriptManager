@@ -2,6 +2,7 @@
 {% set active = 'help' %}
 {% block title %}Documentation — ScriptManager{% endblock %}
 {% block content %}
+
 <style>
   .doc-section { margin-bottom: 2.5rem; }
   .doc-section h2 { font-size: 1.2rem; color: #f1f5f9; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #334155; }
@@ -41,10 +42,15 @@
   <a href="#running">4. Running Scripts</a>
   <a href="#schedules">5. Schedules</a>
   <a href="#workflows">6. Workflows (Chaining)</a>
-  <a href="#runs">7. Viewing Run History</a>
-  <a href="#service">8. Windows Service</a>
-  <a href="#api">9. REST API</a>
-  <a href="#troubleshooting">10. Troubleshooting</a>
+  <a href="#workflow-builder">7. Visual Workflow Builder</a>
+  <a href="#runs">8. Viewing Run History</a>
+  <a href="#dashboard">9. Dashboard &amp; Live Monitoring</a>
+  <a href="#reports">10. Reports &amp; Analytics</a>
+  <a href="#always-on">11. Always-On Services</a>
+  <a href="#notifications">12. Notifications</a>
+  <a href="#service">13. Windows Service (ScriptManager)</a>
+  <a href="#api">14. REST API</a>
+  <a href="#troubleshooting">15. Troubleshooting</a>
 </div>
 
 <!-- Overview -->
@@ -202,12 +208,14 @@
 <!-- Workflows -->
 <div class="doc-section" id="workflows">
   <h2>6. Workflows (Chaining Scripts)</h2>
-  <p>Workflows let you chain multiple scripts together into a pipeline (DAG — Directed Acyclic Graph).</p>
+  <p>Workflows let you chain multiple scripts together into a pipeline (DAG — Directed Acyclic Graph). Scripts can run sequentially, in parallel, or conditionally based on whether a previous step succeeded or failed.</p>
   <h3>Creating a workflow</h3>
   <ol>
     <li>Go to <a href="/workflows">Workflows</a> → click <strong>+ New Workflow</strong></li>
-    <li>Enter a name and select a group → Create</li>
-    <li>Use the <a href="/api/docs" target="_blank">REST API</a> to add nodes (scripts) and edges (connections) to the DAG</li>
+    <li>Enter a name, optional description, and select a group → Create</li>
+    <li>Click <strong>✏ Build</strong> to open the visual workflow builder</li>
+    <li>Add scripts from the right panel and connect them</li>
+    <li>Click <strong>💾 Save</strong> (or press <code>Ctrl+S</code>)</li>
   </ol>
   <h3>DAG structure</h3>
   <div class="step-box" style="font-family:monospace;font-size:.8rem">
@@ -218,119 +226,303 @@
   </div>
   <h3>Edge conditions</h3>
   <table class="doc-table">
-    <thead><tr><th>Condition</th><th>Meaning</th></tr></thead>
+    <thead><tr><th>Condition</th><th>Badge colour</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td><code>success</code></td><td>Only proceed if the previous script exited with code 0</td></tr>
-      <tr><td><code>failure</code></td><td>Only proceed if the previous script failed</td></tr>
-      <tr><td><code>always</code></td><td>Always proceed regardless of exit code</td></tr>
+      <tr><td><code>on success</code></td><td style="color:#86efac">● green</td><td>Only proceed if the previous script exited with code 0</td></tr>
+      <tr><td><code>on failure</code></td><td style="color:#fca5a5">● red</td><td>Only proceed if the previous script failed (non-zero exit)</td></tr>
+      <tr><td><code>always</code></td><td style="color:#c4b5fd">● purple</td><td>Always proceed regardless of exit code</td></tr>
     </tbody>
   </table>
-  <p>Workflows can also be scheduled — add a schedule and target the workflow instead of a single script.</p>
+  <p>Workflows can also be scheduled — add a schedule on the Schedules page and target the workflow instead of a single script. Workflow runs appear in Run History as a parent run containing all child step runs.</p>
+</div>
+
+<!-- Workflow Builder -->
+<div class="doc-section" id="workflow-builder">
+  <h2>7. Visual Workflow Builder</h2>
+  <p>The workflow builder is a visual, interactive editor for building multi-step pipelines without writing any JSON.</p>
+  <h3>Opening the builder</h3>
+  <p>Go to <a href="/workflows">Workflows</a> and click <strong>✏ Build</strong> next to any workflow.</p>
+  <h3>Adding steps</h3>
+  <ul>
+    <li>Use the <strong>Script Library panel</strong> (right side) — search for scripts by name or group</li>
+    <li>Click <strong>+</strong> on a script to append it to the pipeline, or <strong>drag it</strong> onto the canvas to insert at a specific position</li>
+    <li>Each step shows the script name, group, file path, and controls for retry and timeout</li>
+  </ul>
+  <h3>Configuring steps</h3>
+  <table class="doc-table">
+    <thead><tr><th>Field</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>Condition badge</td><td>The coloured pill between steps — click it to cycle: <em>on success → always → on failure</em></td></tr>
+      <tr><td>Retry</td><td>Number of automatic retries if the step fails (0–5)</td></tr>
+      <tr><td>Timeout (s)</td><td>Kill the step after N seconds. 0 = no limit.</td></tr>
+    </tbody>
+  </table>
+  <h3>Reordering steps</h3>
+  <ul>
+    <li>Click <strong>↑ / ↓</strong> buttons on any step card</li>
+    <li>Or <strong>drag a step card</strong> to a new position</li>
+  </ul>
+  <h3>Saving</h3>
+  <ul>
+    <li>Click <strong>💾 Save</strong> in the top-right</li>
+    <li>Press <strong>Ctrl+S</strong> at any time</li>
+    <li>The builder auto-saves every 30 seconds if there are unsaved changes</li>
+    <li>The status indicator shows <span style="color:#22c55e">✓ saved</span> or <span style="color:#fbbf24">● unsaved changes</span></li>
+  </ul>
+  <h3>Running a workflow</h3>
+  <p>Click <strong>▶ Run Workflow</strong> in the builder header, or go to Workflows and click <strong>▶ Run</strong>. You'll be taken to the live run detail page.</p>
 </div>
 
 <!-- Runs -->
 <div class="doc-section" id="runs">
-  <h2>7. Viewing Run History &amp; Logs</h2>
+  <h2>8. Viewing Run History &amp; Logs</h2>
   <h3>Run list</h3>
-  <p>Go to <a href="/runs">Runs</a> to see the last 100 runs across all scripts and workflows.</p>
-  <h3>Run detail page</h3>
-  <p>Click <strong>Logs</strong> on any run to see:</p>
+  <p>Go to <a href="/runs">Runs</a> to see all runs. You can filter by:</p>
   <ul>
-    <li>Status, start time, duration, exit code</li>
+    <li><strong>Status</strong> dropdown — queued, running, success, failed, timed_out, cancelled</li>
+    <li><strong>Script</strong> dropdown — show runs for one specific script</li>
+    <li><strong>Search box</strong> — live text filter across script name, trigger, and status</li>
+  </ul>
+  <h3>Run detail &amp; live logs</h3>
+  <p>Click <strong>Logs</strong> on any run to open the detail page:</p>
+  <ul>
+    <li>Status, start time, duration, exit code, trigger source</li>
     <li>Any runtime parameters that were passed</li>
-    <li>Full stdout and stderr output (stderr shown in red)</li>
+    <li>Full <strong>live log output</strong> via WebSocket — stdout in white, stderr in red</li>
+    <li>Live elapsed timer for running jobs</li>
+    <li><strong>● LIVE</strong> badge while streaming; auto-scroll toggle</li>
+    <li><strong>Copy</strong> button to copy all log output to clipboard</li>
+    <li><strong>■ Stop</strong> button on queued or running jobs</li>
   </ul>
   <h3>Status meanings</h3>
   <table class="doc-table">
     <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr><td><span class="badge" style="background:#312e81;color:#c4b5fd">queued</span></td><td>Waiting to start — in the thread pool queue</td></tr>
-      <tr><td><span class="badge" style="background:#1e3a5f;color:#93c5fd">running</span></td><td>Currently executing</td></tr>
+      <tr><td><span class="badge" style="background:#1e3a5f;color:#93c5fd">running</span></td><td>Currently executing — logs stream live</td></tr>
       <tr><td><span class="badge" style="background:#14532d;color:#86efac">success</span></td><td>Finished with exit code 0</td></tr>
       <tr><td><span class="badge" style="background:#450a0a;color:#fca5a5">failed</span></td><td>Finished with non-zero exit code</td></tr>
       <tr><td><span class="badge" style="background:#334155;color:#cbd5e1">timed_out</span></td><td>Killed because it exceeded the timeout setting</td></tr>
-      <tr><td><span class="badge" style="background:#334155;color:#cbd5e1">cancelled</span></td><td>Manually stopped</td></tr>
+      <tr><td><span class="badge" style="background:#334155;color:#cbd5e1">cancelled</span></td><td>Manually stopped via the Stop button</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- Dashboard -->
+<div class="doc-section" id="dashboard">
+  <h2>9. Dashboard &amp; Live Monitoring</h2>
+  <p>The <a href="/">Dashboard</a> gives you a real-time overview of what's running right now and what ran recently.</p>
+  <h3>Stat cards</h3>
+  <table class="doc-table">
+    <thead><tr><th>Card</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Running Now</td><td>Scripts currently executing</td></tr>
+      <tr><td>Queued</td><td>Scripts waiting to start</td></tr>
+      <tr><td>Success Rate</td><td>Percentage of the last 20 finished runs that succeeded</td></tr>
+      <tr><td>Recent Runs</td><td>Total runs shown in the recent runs table</td></tr>
+    </tbody>
+  </table>
+  <h3>Auto-refresh</h3>
+  <p>The dashboard polls <code>/_api/dashboard</code> every <strong>5 seconds</strong> automatically. You can pause/resume with the <strong>⏸ Pause / ▶ Resume</strong> button. The last-updated timestamp is shown next to it.</p>
+  <h3>Running jobs strip</h3>
+  <p>When scripts are running, a pulsing blue bar appears below the stat cards with a live count. Click any job link to go to its log stream.</p>
+  <h3>Search</h3>
+  <p>The search box filters the recent runs table in real time — type a script name, status, or trigger source.</p>
+</div>
+
+<!-- Reports -->
+<div class="doc-section" id="reports">
+  <h2>10. Reports &amp; Analytics</h2>
+  <p>Go to <a href="/reports">📊 Reports</a> in the sidebar for a full analytics view.</p>
+  <h3>Summary stats</h3>
+  <ul>
+    <li>Total finished runs, success count, failed count, cancelled count</li>
+    <li>Average run duration across all scripts</li>
+    <li>Currently running and queued counts</li>
+  </ul>
+  <h3>14-day activity chart</h3>
+  <p>Bar chart showing daily run counts for the past two weeks — lets you see usage trends at a glance.</p>
+  <h3>Per-script breakdown</h3>
+  <p>Table showing every script that has at least one completed run, with:</p>
+  <ul>
+    <li>Group, total runs, success count, failed count</li>
+    <li>Average duration in seconds</li>
+    <li>Last run status badge</li>
+  </ul>
+</div>
+
+<!-- Always-On Services -->
+<div class="doc-section" id="always-on">
+  <h2>11. Always-On Services</h2>
+  <p>Always-on services are scripts that should run <em>continuously</em> as Windows Services — automatically restarting on crash and surviving reboots. This is different from scheduled scripts: these are long-running daemons (watchers, listeners, agents).</p>
+  <h3>Registering a service</h3>
+  <ol>
+    <li>Go to <a href="/services">🔁 Always-On</a> in the sidebar</li>
+    <li>Click <strong>+ Register Service</strong></li>
+    <li>Select the script and give it a Windows service name (e.g. <code>MyWatcherSvc</code>) → Register</li>
+  </ol>
+  <h3>Installing via NSSM</h3>
+  <p>After registering, use the <strong>NSSM Command</strong> shown in the table to install the Windows service:</p>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    # Run as Administrator in PowerShell:<br>
+    nssm install MyWatcherSvc "C:\scripts\my_watcher.py"<br>
+    nssm set MyWatcherSvc AppRestartDelay 5000<br>
+    nssm start MyWatcherSvc
+  </div>
+  <h3>Heartbeat monitoring</h3>
+  <p>Your always-on script can call the ScriptManager API to report it's alive. Add this to your script's main loop:</p>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    import requests, time<br>
+    while True:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;requests.post("http://localhost:8765/api/services/heartbeat",<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;json={"service_name": "MyWatcherSvc", "status": "running"})<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;time.sleep(60)  # ping every 60 seconds<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;# ... do your work
+  </div>
+  <p>The Always-On page shows <span style="color:#86efac">● alive</span> if the last heartbeat was within 2 minutes, or <span style="color:#fca5a5">● stale</span> if overdue.</p>
+  <div class="warn-box">⚠ NSSM must be installed and on your PATH. Download from <a href="https://nssm.cc/download" target="_blank" style="color:#fde68a">nssm.cc/download</a> — place <code>nssm.exe</code> in <code>C:\Windows\System32\</code> or any folder on PATH.</div>
+</div>
+
+<!-- Notifications -->
+<div class="doc-section" id="notifications">
+  <h2>12. Notifications</h2>
+  <p>ScriptManager can send alerts when a script fails, times out, or is cancelled. Notifications are configured via environment variables in the <code>.env</code> file in the project root.</p>
+  <h3>Email (SMTP)</h3>
+  <p>Add to <code>.env</code>:</p>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    SCRIPTMGR_SMTP_HOST=smtp.gmail.com<br>
+    SCRIPTMGR_SMTP_PORT=587<br>
+    SCRIPTMGR_SMTP_USER=you@gmail.com<br>
+    SCRIPTMGR_SMTP_PASSWORD=your-app-password<br>
+    SCRIPTMGR_SMTP_FROM=scriptmgr@yourdomain.com
+  </div>
+  <p>Emails are sent to <code>SCRIPTMGR_SMTP_USER</code> by default. The subject line includes the script name, run ID, and status.</p>
+  <h3>Microsoft Teams</h3>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    SCRIPTMGR_TEAMS_WEBHOOK=https://outlook.office.com/webhook/...
+  </div>
+  <p>Create a webhook in Teams: go to a channel → <strong>…</strong> → Connectors → <strong>Incoming Webhook</strong>.</p>
+  <h3>Slack</h3>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    SCRIPTMGR_SLACK_WEBHOOK=https://hooks.slack.com/services/...
+  </div>
+  <p>Create a webhook in Slack: <a href="https://api.slack.com/messaging/webhooks" target="_blank" style="color:#60a5fa">api.slack.com/messaging/webhooks</a>.</p>
+  <div class="ok-box">✓ Notifications fire only on non-success runs (failed, timed_out, cancelled). Successful runs do not trigger alerts.</div>
+  <div class="warn-box">⚠ After editing <code>.env</code>, restart ScriptManager for the new settings to take effect: <code>Restart-Service ScriptManager</code> (as Administrator).</div>
 </div>
 
 <!-- Service -->
 <div class="doc-section" id="service">
-  <h2>8. Windows Service (Auto-start on Boot)</h2>
-  <p>ScriptManager is installed as a Windows Service called <strong>ScriptManager</strong> so it starts automatically when Windows boots.</p>
+  <h2>13. Windows Service (Auto-start on Boot)</h2>
+  <p>ScriptManager itself is installed as a Windows Service called <strong>ScriptManager</strong> so it starts automatically when Windows boots — keeping the API, scheduler, and web UI always available.</p>
+  <h3>Initial installation</h3>
+  <p>Run this once in an <strong>Administrator</strong> PowerShell:</p>
+  <div class="step-box"><code>cd d:\repos\Test<br>.\install-service.ps1</code></div>
   <h3>Service management</h3>
   <table class="doc-table">
-    <thead><tr><th>Action</th><th>PowerShell command</th><th>GUI alternative</th></tr></thead>
+    <thead><tr><th>Action</th><th>PowerShell command</th><th>Requires admin</th></tr></thead>
     <tbody>
-      <tr><td>Check status</td><td><code>Get-Service ScriptManager</code></td><td>Open services.msc</td></tr>
-      <tr><td>Stop</td><td><code>Stop-Service ScriptManager</code></td><td>Right-click → Stop</td></tr>
-      <tr><td>Start</td><td><code>Start-Service ScriptManager</code></td><td>Right-click → Start</td></tr>
-      <tr><td>Restart</td><td><code>Restart-Service ScriptManager</code></td><td>Right-click → Restart</td></tr>
+      <tr><td>Check status</td><td><code>Get-Service ScriptManager</code></td><td>No</td></tr>
+      <tr><td>Stop</td><td><code>Stop-Service ScriptManager</code></td><td>Yes</td></tr>
+      <tr><td>Start</td><td><code>Start-Service ScriptManager</code></td><td>Yes</td></tr>
+      <tr><td>Restart (apply code changes)</td><td><code>.\restart-service.ps1</code></td><td>Yes</td></tr>
+      <tr><td>View in GUI</td><td><code>services.msc</code></td><td>No</td></tr>
     </tbody>
   </table>
-  <h3>Service logs</h3>
-  <p>The service writes all output to:</p>
+  <h3>Development mode (no admin needed)</h3>
+  <p>To test code changes without restarting the Windows Service, start a second server on a different port:</p>
+  <div class="step-box"><code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve --port 8766 --reload</code></div>
+  <p>Browse to <a href="http://localhost:8766" target="_blank">http://localhost:8766</a> to test changes. The <code>--reload</code> flag auto-restarts when Python files change.</p>
+  <h3>Service log files</h3>
   <ul>
     <li><code>d:\repos\Test\data\logs\service-stdout.log</code> — normal output</li>
-    <li><code>d:\repos\Test\data\logs\service-stderr.log</code> — errors</li>
+    <li><code>d:\repos\Test\data\logs\service-stderr.log</code> — errors / exceptions</li>
   </ul>
-  <h3>Re-installing the service</h3>
-  <p>If you move the repo or update Python, run this in an <strong>Administrator</strong> PowerShell:</p>
-  <div class="step-box"><code>cd d:\repos\Test<br>.\install-service.ps1</code></div>
+  <h3>Re-installing after a move</h3>
+  <p>If you move the repo or update Python, re-run <code>install-service.ps1</code> as Administrator to update the service paths.</p>
 </div>
 
 <!-- API -->
 <div class="doc-section" id="api">
-  <h2>9. REST API</h2>
+  <h2>14. REST API</h2>
   <p>ScriptManager has a full JSON REST API. All UI features are available via API too — useful for integrations, CI/CD pipelines, or calling from other scripts.</p>
   <h3>Interactive API docs</h3>
-  <p>Open <a href="/api/docs" target="_blank">http://localhost:8765/api/docs</a> — this is Swagger UI where you can explore and call every endpoint directly from the browser.</p>
+  <p>Open <a href="/docs" target="_blank">http://localhost:8765/docs</a> — Swagger UI where you can explore and call every endpoint directly from the browser.</p>
   <h3>Key endpoints</h3>
   <table class="doc-table">
     <thead><tr><th>Method</th><th>Endpoint</th><th>Action</th></tr></thead>
     <tbody>
+      <tr><td>GET</td><td><code>/api/groups</code></td><td>List all groups</td></tr>
+      <tr><td>POST</td><td><code>/api/groups</code></td><td>Create a group</td></tr>
       <tr><td>GET</td><td><code>/api/scripts</code></td><td>List all scripts</td></tr>
       <tr><td>POST</td><td><code>/api/scripts</code></td><td>Add a new script</td></tr>
       <tr><td>POST</td><td><code>/api/scripts/{id}/run</code></td><td>Run a script (with optional params)</td></tr>
-      <tr><td>GET</td><td><code>/api/runs</code></td><td>List runs</td></tr>
-      <tr><td>GET</td><td><code>/api/runs/{id}/logs</code></td><td>Get log lines for a run</td></tr>
-      <tr><td>GET</td><td><code>/api/groups</code></td><td>List groups</td></tr>
+      <tr><td>GET</td><td><code>/api/runs</code></td><td>List runs (filter: status, script_id, page)</td></tr>
+      <tr><td>GET</td><td><code>/api/runs/{id}</code></td><td>Get run detail</td></tr>
+      <tr><td>GET</td><td><code>/api/runs/{id}/logs</code></td><td>Get all log lines for a run</td></tr>
+      <tr><td>GET</td><td><code>/api/schedules</code></td><td>List schedules</td></tr>
       <tr><td>POST</td><td><code>/api/schedules</code></td><td>Create a schedule</td></tr>
       <tr><td>GET</td><td><code>/api/workflows</code></td><td>List workflows</td></tr>
+      <tr><td>POST</td><td><code>/api/workflows</code></td><td>Create a workflow</td></tr>
+      <tr><td>POST</td><td><code>/api/services/heartbeat</code></td><td>Post heartbeat from an always-on service</td></tr>
+      <tr><td>GET</td><td><code>/_api/dashboard</code></td><td>Dashboard stats JSON (polled by the UI)</td></tr>
     </tbody>
   </table>
+  <h3>WebSocket — live log streaming</h3>
+  <p>Connect to <code>ws://localhost:8765/ws/runs/{run_id}/logs</code> to receive log lines in real time while a run is active. Each message is a JSON object:</p>
+  <div class="step-box" style="font-family:monospace;font-size:.8rem">
+    {"stream": "stdout", "line": "Processing row 1234..."}<br>
+    {"stream": "stderr", "line": "Warning: file not found"}<br>
+    {"stream": "system", "line": "__done__"}  ← signals the run finished
+  </div>
   <h3>Calling from another script</h3>
   <div class="step-box" style="font-family:monospace;font-size:.8rem">
-    # Python example — trigger a script run via API<br>
-    import requests<br>
+    # Python — trigger a run and poll for completion<br>
+    import requests, time<br>
+    <br>
+    # Start the run<br>
     r = requests.post("http://localhost:8765/api/scripts/1/run",<br>
     &nbsp;&nbsp;&nbsp;&nbsp;json={"params": ["--date", "2026-06-01"]})<br>
-    print(r.json())  # {"run_id": 42}
+    run_id = r.json()["id"]<br>
+    <br>
+    # Poll until done<br>
+    while True:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;status = requests.get(f"http://localhost:8765/api/runs/{run_id}").json()["status"]<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;if status in ("success", "failed", "timed_out", "cancelled"): break<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;time.sleep(2)<br>
+    print(f"Run finished: {status}")
   </div>
 </div>
 
 <!-- Troubleshooting -->
 <div class="doc-section" id="troubleshooting">
-  <h2>10. Troubleshooting</h2>
+  <h2>15. Troubleshooting</h2>
   <table class="doc-table">
     <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
     <tbody>
-      <tr><td>Site won't load at localhost:8765</td><td>Run <code>Start-Service ScriptManager</code> or manually: <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve</code></td></tr>
+      <tr><td>Site won't load at localhost:8765</td><td>Run <code>Start-Service ScriptManager</code> (as Admin) or manually: <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve</code></td></tr>
       <tr><td>Script shows "failed" with exit code 1</td><td>Click Logs on the run — check stderr (red lines) for the actual error message</td></tr>
-      <tr><td>PowerShell script blocked</td><td>The runner uses <code>-ExecutionPolicy Bypass</code> automatically — if still blocked check your script path is correct</td></tr>
-      <tr><td>Script not found error</td><td>Verify the full path in the script settings. Use an absolute path, not relative.</td></tr>
-      <tr><td>Schedule not firing</td><td>Check the schedule is toggled <strong>On</strong>. Verify cron expression at <a href="https://crontab.guru" target="_blank">crontab.guru</a></td></tr>
-      <tr><td>Port 8765 already in use</td><td>Another instance is running. Run <code>Stop-Service ScriptManager</code> then start again.</td></tr>
+      <tr><td>PowerShell script blocked</td><td>The runner uses <code>-ExecutionPolicy Bypass</code> automatically — if still blocked, verify the script path is correct and the file exists</td></tr>
+      <tr><td>Script not found / path error</td><td>Use a full absolute path in the script settings: <code>C:\scripts\myscript.py</code>. Relative paths are not supported.</td></tr>
+      <tr><td>Schedule not firing</td><td>Check the schedule is toggled <strong>On</strong>. Verify cron expression at <a href="https://crontab.guru" target="_blank">crontab.guru</a>. Restart ScriptManager to reload the scheduler.</td></tr>
+      <tr><td>Port 8765 already in use</td><td>Another instance is running. Stop it: <code>Stop-Service ScriptManager</code> (Admin) then start again.</td></tr>
       <tr><td>Service won't start after reboot</td><td>Check <code>data\logs\service-stderr.log</code> for errors. Re-run <code>install-service.ps1</code> as Administrator.</td></tr>
-      <tr><td>Database errors</td><td>Run <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe db init</code> to re-initialise</td></tr>
+      <tr><td>Database errors / missing tables</td><td>Run <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe db init</code> to re-initialise the database.</td></tr>
+      <tr><td>Code changes not appearing</td><td>The Windows Service must be restarted to pick up code changes: run <code>.\restart-service.ps1</code> as Administrator, or test on port 8766 dev server.</td></tr>
+      <tr><td>Notifications not sending</td><td>Check <code>.env</code> has the right SMTP/webhook settings. Restart the service after changes. Check <code>service-stderr.log</code> for auth errors.</td></tr>
+      <tr><td>Dashboard not auto-refreshing</td><td>Click <strong>▶ Resume</strong> on the dashboard — refresh may have been paused. Check browser console for network errors.</td></tr>
+      <tr><td>Workflow run shows no step details</td><td>Open the parent run in Runs — child step runs are linked via <code>parent_run_id</code> and visible via the API at <code>/api/runs?parent_id={id}</code>.</td></tr>
     </tbody>
   </table>
   <h3>Log files</h3>
   <ul>
     <li>Service output: <code>d:\repos\Test\data\logs\service-stdout.log</code></li>
     <li>Service errors: <code>d:\repos\Test\data\logs\service-stderr.log</code></li>
-    <li>Run logs: stored in the database, viewable on each run's detail page</li>
+    <li>Run logs: stored in the database, viewable on each run's detail page or via <code>/api/runs/{id}/logs</code></li>
   </ul>
+  <h3>Getting support</h3>
+  <p>Open an issue at <a href="https://github.com/Gleifhe/ScriptManager/issues" target="_blank" style="color:#60a5fa">github.com/Gleifhe/ScriptManager/issues</a>.</p>
 </div>
 
+{% endblock %}
 {% endblock %}
