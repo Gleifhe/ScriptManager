@@ -114,16 +114,38 @@ async def _stream_via_polling(websocket: WebSocket, run_id: int) -> None:
 
 
 async def _send_backlog(websocket: WebSocket, run_id: int) -> None:
-    """Send any log lines already written to the DB before this connection subscribed."""
+    """Send log lines already written before this connection subscribed.
+    P9: Capped at BACKLOG_LIMIT lines — informs the client if older lines exist.
+    """
     from scriptmgr.core.db import session_scope
     from scriptmgr.core.models import RunLog
 
+    BACKLOG_LIMIT = 1000
+
     with session_scope() as db:
-        rows = (
-            db.query(RunLog)
-            .filter(RunLog.run_id == run_id)
-            .order_by(RunLog.id)
-            .all()
-        )
+        total = db.query(RunLog).filter(RunLog.run_id == run_id).count()
+
+        if total > BACKLOG_LIMIT:
+            skipped = total - BACKLOG_LIMIT
+            await websocket.send_json({
+                "stream": "system",
+                "line": f"[scriptmgr] {skipped} earlier line(s) omitted — showing last {BACKLOG_LIMIT}",
+            })
+            rows = (
+                db.query(RunLog)
+                .filter(RunLog.run_id == run_id)
+                .order_by(RunLog.id.desc())
+                .limit(BACKLOG_LIMIT)
+                .all()
+            )
+            rows = list(reversed(rows))
+        else:
+            rows = (
+                db.query(RunLog)
+                .filter(RunLog.run_id == run_id)
+                .order_by(RunLog.id)
+                .all()
+            )
+
         for row in rows:
             await websocket.send_json({"stream": row.stream, "line": row.line})

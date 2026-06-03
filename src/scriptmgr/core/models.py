@@ -161,6 +161,9 @@ class RunLog(Base):
 
     run: Mapped[Run] = relationship("Run", back_populates="logs")
 
+    # P10: composite index speeds up log fetches (filter run_id, order by id)
+    __table_args__ = (Index("ix_run_logs_run_id_id", "run_id", "id"),)
+
 
 class AlwaysOnService(Base):
     __tablename__ = "services"

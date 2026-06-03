@@ -118,7 +118,7 @@
         {% endif %}
       </td>
       <td style="font-family:monospace;font-size:.78rem;color:#94a3b8;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.path }}">{{ s.path }}</td>
-      <td>{{ s.runs|length }}</td>
+      <td>{{ run_counts.get(s.id, 0) }}</td>
       <td style="display:flex;gap:.4rem">
         <button class="btn btn-sm btn-primary"
           onclick="openRunModal({{ s.id }}, '{{ s.name|e }}', '{{ s.path|e }}')">▶ Run</button>

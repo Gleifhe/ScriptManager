@@ -26,8 +26,73 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Redis client (lazy, only used when executor_mode == "celery")
+# P1: Batched log writer — reduces per-line DB session overhead dramatically
 # ---------------------------------------------------------------------------
+
+class _RunLogBuffer:
+    """
+    Buffers RunLog rows and flushes to DB in batches.
+
+    Flush triggers:
+      - Buffer reaches FLUSH_LINES entries (synchronous, called from reader thread)
+      - FLUSH_SECS elapses with lines pending   (timer thread)
+      - close() is called at run end            (final flush, synchronous)
+    """
+
+    FLUSH_LINES = 50
+    FLUSH_SECS  = 0.25
+
+    def __init__(self, run_id: int) -> None:
+        self.run_id = run_id
+        self._buf: list[tuple[str, str]] = []
+        self._lock = threading.Lock()
+        self._timer: threading.Timer | None = None
+
+    def add(self, stream: str, line: str) -> None:
+        to_write: list[tuple[str, str]] | None = None
+        with self._lock:
+            self._buf.append((stream, line))
+            if len(self._buf) >= self.FLUSH_LINES:
+                to_write = self._drain_locked()
+            elif self._timer is None:
+                self._timer = threading.Timer(self.FLUSH_SECS, self._timed_flush)
+                self._timer.daemon = True
+                self._timer.start()
+        if to_write:
+            self._write(to_write)
+
+    def close(self) -> None:
+        """Cancel pending timer and flush all remaining lines."""
+        with self._lock:
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
+            to_write = self._drain_locked()
+        if to_write:
+            self._write(to_write)
+
+    # ── internals ────────────────────────────────────────────────────────────
+
+    def _timed_flush(self) -> None:
+        with self._lock:
+            self._timer = None
+            to_write = self._drain_locked()
+        if to_write:
+            self._write(to_write)
+
+    def _drain_locked(self) -> list[tuple[str, str]]:
+        rows, self._buf = self._buf, []
+        return rows
+
+    def _write(self, rows: list[tuple[str, str]]) -> None:
+        try:
+            with session_scope() as db:
+                db.bulk_save_objects([
+                    RunLog(run_id=self.run_id, stream=s, line=ln)
+                    for s, ln in rows
+                ])
+        except Exception as exc:
+            logger.warning("Log flush failed for run %s: %s", self.run_id, exc)
 
 _REDIS_CLIENT = None
 _REDIS_CHECKED = False
@@ -145,13 +210,12 @@ def execute_script(run_id: int) -> int:
         run.worker = threading.current_thread().name
         db.add(run)
 
+    buf = _RunLogBuffer(run_id)
+
     def _log(stream: str, line: str) -> None:
         line = line.rstrip("\n")
-        with session_scope() as db:
-            db.add(RunLog(run_id=run_id, stream=stream, line=line))
-        # Always broadcast to in-process subscribers (cheap)
-        log_hub.publish(run_id, stream, line)
-        # Also publish to Redis if running in distributed (celery) mode
+        buf.add(stream, line)               # batched DB write
+        log_hub.publish(run_id, stream, line)  # immediate in-process broadcast
         r = _get_redis()
         if r:
             try:
@@ -186,6 +250,7 @@ def execute_script(run_id: int) -> int:
             proc.kill()
             proc.wait()
             _log("system", f"[scriptmgr] Timed out after {timeout}s")
+            buf.close()
             _finish_run(run_id, RunStatus.TIMED_OUT, -9)
             return -9
 
@@ -197,6 +262,9 @@ def execute_script(run_id: int) -> int:
         logger.exception("Error executing run %s", run_id)
         _log("system", f"[scriptmgr] Execution error: {exc}")
         exit_code = -1
+
+    # Flush any remaining buffered log lines before finalising the run
+    buf.close()
 
     status = RunStatus.SUCCESS if exit_code == 0 else RunStatus.FAILED
     _finish_run(run_id, status, exit_code)
