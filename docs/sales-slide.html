@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScriptManager — Sales Slide</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0e1a;
+      color: #f0f4ff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide {
+      width: 1280px;
+      min-height: 720px;
+      background: linear-gradient(135deg, #0d1224 0%, #0f1a35 50%, #0d1224 100%);
+      border: 1px solid rgba(99,179,237,0.15);
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    /* Ambient glow */
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .slide::after {
+      content: '';
+      position: absolute;
+      bottom: -150px; right: -150px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(56,189,248,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 32px 52px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #6366f1, #38bdf8);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #a5b4fc, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .badge {
+      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(56,189,248,0.25));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 20px;
+      padding: 6px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 28px 52px 20px;
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .hero-left h1 {
+      font-size: 52px;
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -2px;
+      margin-bottom: 8px;
+    }
+
+    .hero-left h1 .accent {
+      background: linear-gradient(90deg, #6366f1, #38bdf8, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-left .tagline {
+      font-size: 18px;
+      color: #94a3b8;
+      font-weight: 400;
+      margin-bottom: 24px;
+      line-height: 1.5;
+      max-width: 520px;
+    }
+
+    .hero-left .tagline strong {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    /* Pain → solution */
+    .pain-box {
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .pain-box .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .pain-box p { font-size: 13.5px; color: #fca5a5; line-height: 1.5; }
+    .pain-box p strong { color: #fecaca; }
+
+    .solve-box {
+      background: rgba(52,211,153,0.07);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .solve-box .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .solve-box p { font-size: 13.5px; color: #6ee7b7; line-height: 1.5; }
+    .solve-box p strong { color: #a7f3d0; }
+
+    /* Feature panel */
+    .feature-panel {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.025);
+      transition: background 0.2s;
+    }
+    .feature-item:hover { background: rgba(99,102,241,0.08); }
+
+    .feature-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .feature-text h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+    }
+    .feature-text p {
+      font-size: 11.5px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    /* ── METRICS STRIP ── */
+    .metrics {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin: 0 52px 24px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric {
+      flex: 1;
+      text-align: center;
+      padding: 18px 10px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    .metric:last-child { border-right: none; }
+
+    .metric .number {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, #a5b4fc, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: block;
+    }
+    .metric .label {
+      font-size: 11px;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-top: 2px;
+      display: block;
+    }
+
+    /* ── BOTTOM STRIP ── */
+    .bottom-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 52px 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .use-cases {
+      display: flex;
+      gap: 10px;
+    }
+
+    .use-case-tag {
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: #a5b4fc;
+      font-weight: 500;
+    }
+
+    .cta-area {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cta-secondary {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+    }
+    .cta-secondary a {
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .cta-btn {
+      background: linear-gradient(135deg, #6366f1, #38bdf8);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      box-shadow: 0 0 30px rgba(99,102,241,0.35);
+    }
+
+    /* ── WORKFLOW DIAGRAM (inside feature panel header) ── */
+    .panel-header {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    /* Pipe chain illustration */
+    .pipe-chain {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 4px;
+    }
+
+    .pipe-node {
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #a5b4fc;
+      white-space: nowrap;
+    }
+
+    .pipe-node.ok { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: #6ee7b7; }
+    .pipe-node.fail { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+
+    .pipe-arrow {
+      font-size: 11px;
+      color: #334155;
+      padding: 0 5px;
+    }
+    .pipe-arrow.ok { color: #34d399; }
+    .pipe-arrow.fail { color: #f87171; }
+
+    .pipe-label {
+      font-size: 9px;
+      color: #475569;
+      text-align: center;
+      display: block;
+      margin-top: -4px;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">⚙️</div>
+      <span class="logo-text">ScriptManager</span>
+    </div>
+    <div class="badge">AI Automation Platform</div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+
+    <!-- LEFT: headline + pain/solve -->
+    <div class="hero-left">
+      <h1>Your AI Scripts.<br><span class="accent">Finally In Control.</span></h1>
+      <p class="tagline">
+        Stop babysitting Python files scattered across folders.
+        <strong>ScriptManager orchestrates, schedules, chains, and monitors</strong>
+        every AI and automation script you own — from a single dashboard.
+      </p>
+
+      <div class="pain-box">
+        <span class="icon">😩</span>
+        <p>
+          <strong>The problem:</strong> You've built dozens of AI scripts — scrapers, LLM pipelines, data processors — but they run in terminal windows, fail silently, and have no visibility. Chaining them means writing more scripts.
+        </p>
+      </div>
+
+      <div class="solve-box">
+        <span class="icon">✅</span>
+        <p>
+          <strong>ScriptManager fixes this:</strong> One service. Any script type. Visual workflow builder. Live logs. Automatic retry. Email + Slack alerts on failure. Runs on your machine — <strong>no cloud, no infrastructure, no cost.</strong>
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT: feature grid -->
+    <div class="feature-panel">
+      <div class="panel-header">What you get</div>
+
+      <!-- Mini pipeline illustration -->
+      <div class="pipe-chain">
+        <div class="pipe-node">fetch_data.py</div>
+        <span class="pipe-arrow ok">→ ✓</span>
+        <div class="pipe-node">run_llm.py</div>
+        <span class="pipe-arrow ok">→ ✓</span>
+        <div class="pipe-node">send_report.py</div>
+        <span class="pipe-arrow fail">→ ✗</span>
+        <div class="pipe-node fail">alert.ps1</div>
+      </div>
+      <span class="pipe-label">Conditional DAG workflow — scripts chain on success or failure</span>
+
+      <div class="feature-item">
+        <span class="feature-icon">🗂️</span>
+        <div class="feature-text">
+          <h3>Organized Groups</h3>
+          <p>Folder-like groups keep AI, data, and reporting scripts neatly separated</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">⏰</span>
+        <div class="feature-text">
+          <h3>4 Schedule Types</h3>
+          <p>Cron, interval, one-shot date, or continuous re-run with configurable delay</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">📡</span>
+        <div class="feature-text">
+          <h3>Live Log Streaming</h3>
+          <p>Watch stdout/stderr in real time in the browser — no more blind waits</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">🔄</span>
+        <div class="feature-text">
+          <h3>Auto Retry + Timeout</h3>
+          <p>Per-node retry counts and timeouts; failed workflows trigger alerts instantly</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">🔒</span>
+        <div class="feature-text">
+          <h3>Always-On Services</h3>
+          <p>Wrap any script as a Windows service — runs 24/7, restarts on crash</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">📊</span>
+        <div class="feature-text">
+          <h3>Full Run Reports</h3>
+          <p>Success rates, avg durations, 14-day trends, per-script breakdowns</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METRICS STRIP -->
+  <div class="metrics">
+    <div class="metric">
+      <span class="number">6+</span>
+      <span class="label">Script Languages</span>
+    </div>
+    <div class="metric">
+      <span class="number">0</span>
+      <span class="label">Cloud Required</span>
+    </div>
+    <div class="metric">
+      <span class="number">4</span>
+      <span class="label">Schedule Types</span>
+    </div>
+    <div class="metric">
+      <span class="number">&lt;5 min</span>
+      <span class="label">Setup Time</span>
+    </div>
+    <div class="metric">
+      <span class="number">∞</span>
+      <span class="label">Scripts Managed</span>
+    </div>
+    <div class="metric">
+      <span class="number">Real-time</span>
+      <span class="label">Log Streaming</span>
+    </div>
+    <div class="metric">
+      <span class="number">1</span>
+      <span class="label">Command Install</span>
+    </div>
+  </div>
+
+  <!-- BOTTOM STRIP -->
+  <div class="bottom-strip">
+    <div class="use-cases">
+      <span class="use-case-tag">🤖 LLM Pipelines</span>
+      <span class="use-case-tag">🕷️ Web Scrapers</span>
+      <span class="use-case-tag">📈 Data Workflows</span>
+      <span class="use-case-tag">🗃️ ETL Jobs</span>
+      <span class="use-case-tag">🔔 Alert Systems</span>
+      <span class="use-case-tag">🧪 Model Training</span>
+    </div>
+    <div class="cta-area">
+      <span class="cta-secondary">
+        Open source · <a href="https://github.com/Gleifhe/ScriptManager">github.com/Gleifhe/ScriptManager</a>
+      </span>
+      <button class="cta-btn">▶ Get Started Free</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
