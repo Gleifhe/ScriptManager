@@ -51,7 +51,8 @@ scriptmgr = "scriptmgr.cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"scriptmgr.web" = ["templates/*.html", "static/*"]
+# Templates and static files live under src/scriptmgr/api/web/
+"scriptmgr.api.web" = ["templates/*.html", "templates/**/*.html", "static/**/*"]
 
 [tool.ruff]
 line-length = 110

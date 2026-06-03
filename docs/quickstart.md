@@ -177,7 +177,7 @@ scriptmgr worker
 
 Open the dashboard: http://localhost:8765
 
-API docs: http://localhost:8765/api/docs
+Interactive API docs (Swagger UI): http://localhost:8765/docs
 
 ---
 

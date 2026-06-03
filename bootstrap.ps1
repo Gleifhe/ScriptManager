@@ -16,6 +16,10 @@
     Install the optional celery extra (celery + redis). Required only for
     distributed/multi-host deployments.
 
+.PARAMETER Service
+    Also install pywin32 (the [windows] extra) needed for the Windows service
+    installer (scriptmgr service install). Not required for plain workstation use.
+
 .PARAMETER Python
     Path to the Python interpreter to use. Defaults to "python".
 
@@ -30,6 +34,7 @@
 [CmdletBinding()]
 param(
     [switch]$Celery,
+    [switch]$Service,
     [string]$Python = "python"
 )
 
@@ -90,14 +95,17 @@ Write-Step "Upgrading pip..."
 if ($LASTEXITCODE -ne 0) { Fail "pip upgrade failed." }
 
 $extras = @()
-if ($Celery) { $extras += "celery" }
-$extras += "windows"  # pywin32 for Windows service
-$extraStr = ($extras -join ",")
+if ($Celery)  { $extras += "celery" }
+if ($Service) { $extras += "windows" }  # pywin32 — only needed for Windows service installer
 
-Write-Step "Installing ScriptManager (extras: $extraStr)..."
+$installSpec = if ($extras.Count -gt 0) { "-e `".[$($extras -join ',')]`"" } else { "-e ." }
+$displayExtras = if ($extras.Count -gt 0) { $extras -join "," } else { "core only" }
+
+Write-Step "Installing ScriptManager (extras: $displayExtras)..."
 Push-Location $RepoRoot
 try {
-    & $VenvPython -m pip install -e ".[$extraStr]"
+    $cmd = "& `$VenvPython -m pip install $installSpec"
+    Invoke-Expression $cmd
     if ($LASTEXITCODE -ne 0) { Fail "pip install failed." }
 } finally {
     Pop-Location
@@ -143,4 +151,6 @@ if ($Celery) {
     Write-Host "    3. Start a worker on each host: scriptmgr worker"
     Write-Host ""
 }
-Write-Host "For Windows service installation see docs\index.html (Service page)." -ForegroundColor Gray
+Write-Host "For Windows service installation, re-run with -Service flag:" -ForegroundColor Gray
+Write-Host "    .\bootstrap.ps1 -Service" -ForegroundColor Gray
+Write-Host "Then run as Administrator: .\install-service.ps1" -ForegroundColor Gray

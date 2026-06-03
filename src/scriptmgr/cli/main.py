@@ -527,7 +527,7 @@ def always_on_install(
     ),
     output_dir: str = typer.Option(".", "--output-dir", help="Where to write generated files"),
     nssm: str = typer.Option("nssm", "--nssm"),
-    log_dir: str = typer.Option(r"C:\ProgramData\ScriptManager\logs", "--log-dir"),
+    log_dir: str = typer.Option("", "--log-dir", help="Log directory (default: <output-dir>/logs)"),
 ):
     """Generate and install an always-on Windows service wrapper for a script."""
     from pathlib import Path as P

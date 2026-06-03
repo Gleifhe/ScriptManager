@@ -85,13 +85,15 @@ def generate_always_on_service(
     heartbeat_interval: int = 60,
     output_dir: str = ".",
     nssm_path: str = "nssm",
-    log_dir: str = r"C:\ProgramData\ScriptManager\logs",
+    log_dir: str = "",  # defaults to <output_dir>/logs so it stays near the generated files
 ) -> dict[str, str]:
     """
     Generate wrapper.py and install.ps1 for the always-on service.
     Returns a dict of {filename: content}.
     """
     import sys
+
+    resolved_log_dir = log_dir or str(Path(output_dir).resolve() / "logs")
 
     wrapper_content = _WRAPPER_TEMPLATE.format(
         script_path=script_path,
@@ -108,7 +110,7 @@ def generate_always_on_service(
         python_path=sys.executable,
         wrapper_path=wrapper_path,
         service_name=service_name,
-        log_dir=log_dir,
+        log_dir=resolved_log_dir,
     )
     installer_filename = f"install_{service_name}.ps1"
 

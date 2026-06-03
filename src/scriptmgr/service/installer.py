@@ -16,6 +16,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def _find_repo_root() -> Path:
+    """Walk up from this file to find the repo root (pyproject.toml marker)."""
+    here = Path(__file__).resolve().parent
+    for candidate in [here, *here.parents]:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+    # Fallback: for non-editable pip installs, use the venv's parent or CWD
+    return Path.cwd()
+
+
 SERVICE_NAME = "ScriptManager"
 SERVICE_DISPLAY = "ScriptManager Orchestration Service"
 SERVICE_DESCRIPTION = (
@@ -25,14 +36,37 @@ SERVICE_DESCRIPTION = (
 
 
 def _nssm() -> str:
-    """Return the path to nssm.exe, checking PATH and a local bin/ directory."""
+    """Return the path to nssm.exe.
+
+    Discovery order:
+    1. NSSM_PATH environment variable
+    2. Local bin/nssm.exe next to this file
+    3. PATH (Get-Command nssm equivalent: shutil.which)
+    4. WinGet packages folder (version-agnostic glob)
+    5. Fall back to bare "nssm" and let the OS raise the error
+    """
+    import shutil
+
     env_path = os.environ.get("NSSM_PATH")
     if env_path and Path(env_path).exists():
         return env_path
+
     local = Path(__file__).parent / "bin" / "nssm.exe"
     if local.exists():
         return str(local)
-    return "nssm"  # assume it's on PATH
+
+    on_path = shutil.which("nssm")
+    if on_path:
+        return on_path
+
+    # WinGet packages — version-agnostic glob
+    winget_base = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Packages"
+    if winget_base.exists():
+        matches = list(winget_base.glob("NSSM.NSSM_*/**/win64/nssm.exe"))
+        if matches:
+            return str(matches[0])
+
+    return "nssm"  # last resort — let caller get a meaningful OS error
 
 
 def _python() -> str:
@@ -41,7 +75,7 @@ def _python() -> str:
 
 def _app_dir() -> str:
     """Root of the installed package / project."""
-    return str(Path(__file__).resolve().parents[3])
+    return str(_find_repo_root())
 
 
 def install_service(data_dir: str = "") -> None:
