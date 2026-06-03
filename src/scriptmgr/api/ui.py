@@ -330,9 +330,9 @@ def schedules_create(
     )
     db.add(sched); db.commit()
 
-    from scriptmgr.scheduler.apscheduler import schedule_item
+    from scriptmgr.scheduler.apscheduler import add_schedule
     db.refresh(sched)
-    schedule_item(sched)
+    add_schedule(sched)
 
     return RedirectResponse("/schedules", status_code=303)
 

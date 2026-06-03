@@ -134,7 +134,7 @@ Write-Host "Then start the server (inproc mode - no separate worker needed):" -F
 Write-Host "    scriptmgr serve"
 Write-Host ""
 Write-Host "Open the UI:" -ForegroundColor Yellow
-Write-Host "    http://localhost:8000"
+Write-Host "    http://localhost:8765"
 Write-Host ""
 if ($Celery) {
     Write-Host "You installed the [celery] extra. To use distributed mode:" -ForegroundColor Yellow

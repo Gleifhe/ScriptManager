@@ -416,8 +416,8 @@
   <h2>13. Windows Service (Auto-start on Boot)</h2>
   <p>ScriptManager itself is installed as a Windows Service called <strong>ScriptManager</strong> so it starts automatically when Windows boots — keeping the API, scheduler, and web UI always available.</p>
   <h3>Initial installation</h3>
-  <p>Run this once in an <strong>Administrator</strong> PowerShell:</p>
-  <div class="step-box"><code>cd d:\repos\Test<br>.\install-service.ps1</code></div>
+  <p>Run this once in an <strong>Administrator</strong> PowerShell from your ScriptManager install directory:</p>
+  <div class="step-box"><code>cd &lt;install-dir&gt;<br>.\install-service.ps1</code></div>
   <h3>Service management</h3>
   <table class="doc-table">
     <thead><tr><th>Action</th><th>PowerShell command</th><th>Requires admin</th></tr></thead>
@@ -431,12 +431,12 @@
   </table>
   <h3>Development mode (no admin needed)</h3>
   <p>To test code changes without restarting the Windows Service, start a second server on a different port:</p>
-  <div class="step-box"><code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve --port 8766 --reload</code></div>
+  <div class="step-box"><code>.\.venv\Scripts\scriptmgr.exe serve --port 8766 --reload</code></div>
   <p>Browse to <a href="http://localhost:8766" target="_blank">http://localhost:8766</a> to test changes. The <code>--reload</code> flag auto-restarts when Python files change.</p>
   <h3>Service log files</h3>
   <ul>
-    <li><code>d:\repos\Test\data\logs\service-stdout.log</code> — normal output</li>
-    <li><code>d:\repos\Test\data\logs\service-stderr.log</code> — errors / exceptions</li>
+    <li><code>&lt;install-dir&gt;\data\logs\service-stdout.log</code> — normal output</li>
+    <li><code>&lt;install-dir&gt;\data\logs\service-stderr.log</code> — errors / exceptions</li>
   </ul>
   <h3>Re-installing after a move</h3>
   <p>If you move the repo or update Python, re-run <code>install-service.ps1</code> as Administrator to update the service paths.</p>
@@ -500,14 +500,14 @@
   <table class="doc-table">
     <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
     <tbody>
-      <tr><td>Site won't load at localhost:8765</td><td>Run <code>Start-Service ScriptManager</code> (as Admin) or manually: <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe serve</code></td></tr>
+      <tr><td>Site won't load at localhost:8765</td><td>Run <code>Start-Service ScriptManager</code> (as Admin) or manually: <code>.\.venv\Scripts\scriptmgr.exe serve</code></td></tr>
       <tr><td>Script shows "failed" with exit code 1</td><td>Click Logs on the run — check stderr (red lines) for the actual error message</td></tr>
       <tr><td>PowerShell script blocked</td><td>The runner uses <code>-ExecutionPolicy Bypass</code> automatically — if still blocked, verify the script path is correct and the file exists</td></tr>
       <tr><td>Script not found / path error</td><td>Use a full absolute path in the script settings: <code>C:\scripts\myscript.py</code>. Relative paths are not supported.</td></tr>
       <tr><td>Schedule not firing</td><td>Check the schedule is toggled <strong>On</strong>. Verify cron expression at <a href="https://crontab.guru" target="_blank">crontab.guru</a>. Restart ScriptManager to reload the scheduler.</td></tr>
       <tr><td>Port 8765 already in use</td><td>Another instance is running. Stop it: <code>Stop-Service ScriptManager</code> (Admin) then start again.</td></tr>
       <tr><td>Service won't start after reboot</td><td>Check <code>data\logs\service-stderr.log</code> for errors. Re-run <code>install-service.ps1</code> as Administrator.</td></tr>
-      <tr><td>Database errors / missing tables</td><td>Run <code>d:\repos\Test\.venv\Scripts\scriptmgr.exe db init</code> to re-initialise the database.</td></tr>
+      <tr><td>Database errors / missing tables</td><td>Run <code>.\.venv\Scripts\scriptmgr.exe db init</code> to re-initialise the database.</td></tr>
       <tr><td>Code changes not appearing</td><td>The Windows Service must be restarted to pick up code changes: run <code>.\restart-service.ps1</code> as Administrator, or test on port 8766 dev server.</td></tr>
       <tr><td>Notifications not sending</td><td>Check <code>.env</code> has the right SMTP/webhook settings. Restart the service after changes. Check <code>service-stderr.log</code> for auth errors.</td></tr>
       <tr><td>Dashboard not auto-refreshing</td><td>Click <strong>▶ Resume</strong> on the dashboard — refresh may have been paused. Check browser console for network errors.</td></tr>
@@ -516,8 +516,8 @@
   </table>
   <h3>Log files</h3>
   <ul>
-    <li>Service output: <code>d:\repos\Test\data\logs\service-stdout.log</code></li>
-    <li>Service errors: <code>d:\repos\Test\data\logs\service-stderr.log</code></li>
+    <li>Service output: <code>&lt;install-dir&gt;\data\logs\service-stdout.log</code></li>
+    <li>Service errors: <code>&lt;install-dir&gt;\data\logs\service-stderr.log</code></li>
     <li>Run logs: stored in the database, viewable on each run's detail page or via <code>/api/runs/{id}/logs</code></li>
   </ul>
   <h3>Getting support</h3>

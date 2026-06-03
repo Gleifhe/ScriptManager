@@ -224,10 +224,10 @@ Plus: Per-script Windows Service wrappers with heartbeat monitoring</code></pre>
 
   <h2>Project Layout</h2>
   <div class="card">
-<pre><code>d:\repos\Test\
+<pre><code>&lt;install-dir&gt;\
 ├── src\scriptmgr\
 │   ├── core\          ← config, db, ORM models, Pydantic schemas
-│   ├── executor\      ← Celery app + subprocess runner + tasks
+│   ├── executor\      ← subprocess runner + tasks + log hub
 │   ├── scheduler\     ← APScheduler integration
 │   ├── workflows\     ← DAG model + engine
 │   ├── notifications\ ← email + Teams/Slack adapters
@@ -267,15 +267,16 @@ Plus: Per-script Windows Service wrappers with heartbeat monitoring</code></pre>
     <li>
       <div class="step-body">
         <div class="step-title">Create a virtual environment &amp; install</div>
-<pre><code>cd d:\repos\Test
+<pre><code># Navigate to your ScriptManager install directory
+cd &lt;install-dir&gt;
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # Workstation (in-process) — the default. No Redis, no Celery.
 pip install -e ".[dev]"
 
-# OR distributed mode (multi-host, requires Redis):
-# pip install -e ".[dev,celery]"</code></pre>
+# OR use the one-click installer:
+# .\bootstrap.ps1</code></pre>
       </div>
     </li>
     <li>
@@ -343,7 +344,7 @@ scriptmgr script run hello --watch</code></pre>
      copies <code>.env.example</code> → <code>.env</code>, and initialises the database.</p>
 
   <h2>Manual install</h2>
-<pre><code>cd d:\repos\Test
+<pre><code>cd &lt;install-dir&gt;
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 

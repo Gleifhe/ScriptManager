@@ -1,6 +1,6 @@
 # restart-service.ps1
-# Run as Administrator to restart the ScriptManager Windows service
-# This picks up all code changes from d:\repos\Test
+# Run as Administrator to restart the ScriptManager Windows service.
+# Fully portable — works from any install location.
 
 param(
     [switch]$Stop,
