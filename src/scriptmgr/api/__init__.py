@@ -52,7 +52,7 @@ def create_app() -> FastAPI:
     )
 
     # API routers
-    from scriptmgr.api.routers import groups, runs, schedules, scripts, services, workflows
+    from scriptmgr.api.routers import browse, groups, runs, schedules, scripts, services, workflows
 
     application.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
     application.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     application.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
     application.include_router(runs.router, prefix="/api/runs", tags=["Runs"])
     application.include_router(services.router, prefix="/api/services", tags=["Services"])
+    application.include_router(browse.router, prefix="/api/browse", tags=["Browse"])
 
     # WebSocket log streaming
     from scriptmgr.api.websocket import router as ws_router

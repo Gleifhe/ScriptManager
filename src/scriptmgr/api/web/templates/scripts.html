@@ -26,12 +26,17 @@
       </div>
       <div>
         <label style="font-size:.85rem;color:#94a3b8">Script / Executable path *</label>
-        <input name="path" required placeholder="C:\scripts\my_script.py  or  C:\tools\mytool.exe" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+        <div style="display:flex;gap:.4rem;margin-top:.25rem">
+          <input name="path" id="add-path" required placeholder="C:\scripts\my_script.py  or  C:\tools\mytool.exe"
+            style="flex:1;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          <button type="button" class="btn" style="background:#334155;color:#e2e8f0;white-space:nowrap"
+            onclick="openBrowser('add-path', 'add-interp')">📂 Browse…</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
         <div>
           <label style="font-size:.85rem;color:#94a3b8">Language / Type</label>
-          <select name="interpreter" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          <select name="interpreter" id="add-interp" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
             <option value="auto">Auto-detect (from extension)</option>
             <option value="python">Python (.py)</option>
             <option value="powershell">PowerShell (.ps1)</option>
@@ -153,7 +158,12 @@
         </div>
         <div>
           <label style="font-size:.85rem;color:#94a3b8">Script / Executable path *</label>
-          <input id="edit-path" name="path" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          <div style="display:flex;gap:.4rem;margin-top:.25rem">
+            <input id="edit-path" name="path" required
+              style="flex:1;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+            <button type="button" class="btn" style="background:#334155;color:#e2e8f0;white-space:nowrap"
+              onclick="openBrowser('edit-path', 'edit-interp')">📂 Browse…</button>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div>
@@ -190,6 +200,7 @@
 </div>
 
 <script>
+/* ── Script search ─────────────────────────────────────────────────────── */
 function filterScripts(q) {
   const lq = q.toLowerCase();
   let visible = 0;
@@ -204,6 +215,7 @@ function filterScripts(q) {
   if (cnt) cnt.textContent = visible + ' script' + (visible !== 1 ? 's' : '') + (lq ? ' matching' : '');
 }
 
+/* ── Run modal ─────────────────────────────────────────────────────────── */
 function openRunModal(id, name, path) {
   document.getElementById('run-script-name').textContent = name;
   document.getElementById('run-script-path').textContent = path;
@@ -216,6 +228,7 @@ document.getElementById('run-modal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
 });
 
+/* ── Edit modal ────────────────────────────────────────────────────────── */
 function openEditModal(id, name, path, groupId, interp, args, timeout, desc) {
   document.getElementById('edit-form').action = '/scripts/' + id + '/edit';
   document.getElementById('edit-name').value = name;
@@ -233,5 +246,147 @@ function openEditModal(id, name, path, groupId, interp, args, timeout, desc) {
 document.getElementById('edit-modal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
 });
+
+/* ── File Browser ──────────────────────────────────────────────────────── */
+let _browserTargetField = null;
+let _browserInterpField = null;
+
+const EXT_INTERP = {
+  '.py': 'python', '.ps1': 'powershell', '.bat': 'cmd',
+  '.cmd': 'cmd', '.go': 'go', '.exe': '', '.sh': 'python'
+};
+
+function openBrowser(targetFieldId, interpFieldId) {
+  _browserTargetField = document.getElementById(targetFieldId);
+  _browserInterpField = interpFieldId ? document.getElementById(interpFieldId) : null;
+  const current = (_browserTargetField && _browserTargetField.value) ? _browserTargetField.value : '';
+  document.getElementById('browser-modal').style.display = 'flex';
+  browseTo(current || '');
+}
+
+function closeBrowser() {
+  document.getElementById('browser-modal').style.display = 'none';
+}
+
+async function browseTo(path) {
+  const crumb = document.getElementById('browser-crumb');
+  const listing = document.getElementById('browser-listing');
+  crumb.textContent = 'Loading…';
+  listing.innerHTML = '<tr><td colspan="2" style="color:#64748b;padding:.5rem">Loading…</td></tr>';
+
+  let url = '/api/browse?path=' + encodeURIComponent(path || '');
+  const res = await fetch(url);
+  if (!res.ok) {
+    listing.innerHTML = '<tr><td colspan="2" style="color:#f87171;padding:.5rem">Error: ' + (await res.text()) + '</td></tr>';
+    return;
+  }
+  const data = await res.json();
+
+  // Breadcrumb
+  const parts = data.current.replace(/\\/g, '/').split('/').filter(Boolean);
+  let crumbHtml = '';
+  if (data.current.match(/^[A-Za-z]:\\/)) {
+    // Windows — show drive as first crumb
+    const drive = data.current.slice(0, 3);
+    crumbHtml += `<span class="crumb" onclick="browseTo('${drive}')">${drive.slice(0,2)}</span>`;
+    let built = drive;
+    for (let i = 0; i < parts.length; i++) {
+      built = built.replace(/\\$/, '') + '\\' + parts[i];
+      crumbHtml += ' <span style="color:#475569">›</span> <span class="crumb" onclick="browseTo(\'${built}\')">${parts[i]}</span>'.replace('${built}', built).replace('${parts[i]}', parts[i]);
+    }
+  } else {
+    crumbHtml = '<span class="crumb" onclick="browseTo(\'/\')">/</span>';
+    let built = '';
+    for (const p of parts) {
+      built += '/' + p;
+      crumbHtml += ' <span style="color:#475569">›</span> <span class="crumb" onclick="browseTo(\'' + built + '\')">' + p + '</span>';
+    }
+  }
+  crumb.innerHTML = crumbHtml;
+
+  // Listing
+  let html = '';
+
+  // Up row
+  if (data.parent) {
+    html += `<tr class="browser-row" onclick="browseTo('${data.parent.replace(/'/g,"\\'")}')">
+      <td style="color:#94a3b8;padding:.4rem .5rem;width:1.2rem">⬆</td>
+      <td style="color:#94a3b8;padding:.4rem .5rem;font-size:.875rem">..</td>
+    </tr>`;
+  }
+
+  // Dirs
+  for (const d of data.dirs) {
+    html += `<tr class="browser-row" onclick="browseTo('${d.path.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+      <td style="padding:.35rem .5rem;width:1.2rem;color:#fbbf24">📁</td>
+      <td style="padding:.35rem .5rem;font-size:.875rem;color:#e2e8f0">${d.name}</td>
+    </tr>`;
+  }
+
+  // Files
+  for (const f of data.files) {
+    const icon = {'.py':'🐍','.ps1':'💙','.bat':'⚙','.cmd':'⚙','.go':'🐹','.exe':'🔧','.sh':'🖥'}[f.ext] || '📄';
+    html += `<tr class="browser-row browser-file" onclick="selectFile('${f.path.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}', '${f.ext}')">
+      <td style="padding:.35rem .5rem;width:1.2rem">${icon}</td>
+      <td style="padding:.35rem .5rem;font-size:.875rem;color:#60a5fa">${f.name}</td>
+    </tr>`;
+  }
+
+  if (!data.dirs.length && !data.files.length) {
+    html = '<tr><td colspan="2" style="color:#64748b;padding:.5rem;font-size:.85rem">No script files found in this folder.</td></tr>';
+  }
+
+  listing.innerHTML = html;
+}
+
+function selectFile(path, ext) {
+  if (_browserTargetField) {
+    _browserTargetField.value = path;
+  }
+  if (_browserInterpField && EXT_INTERP.hasOwnProperty(ext)) {
+    const val = EXT_INTERP[ext];
+    for (const opt of _browserInterpField.options) {
+      opt.selected = (opt.value === val);
+    }
+  }
+  closeBrowser();
+  if (_browserTargetField) _browserTargetField.focus();
+}
+
+document.getElementById('browser-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeBrowser();
+});
 </script>
+
+<!-- File Browser Modal -->
+<div id="browser-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#1e293b;border-radius:.6rem;width:680px;max-width:96vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-bottom:1px solid #334155">
+      <span style="font-size:.9rem;font-weight:600;color:#f1f5f9">Browse for Script</span>
+      <button onclick="closeBrowser()" style="background:none;border:none;color:#94a3b8;font-size:1.1rem;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <!-- Breadcrumb -->
+    <div id="browser-crumb" style="padding:.6rem 1.25rem;background:#0f172a;font-family:monospace;font-size:.8rem;color:#94a3b8;border-bottom:1px solid #1e293b;min-height:2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <!-- File listing -->
+    <div style="flex:1;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <tbody id="browser-listing"></tbody>
+      </table>
+    </div>
+    <!-- Footer -->
+    <div style="padding:.75rem 1.25rem;border-top:1px solid #334155;display:flex;align-items:center;gap:.5rem">
+      <span style="font-size:.8rem;color:#64748b;flex:1">Click a <span style="color:#60a5fa">file</span> to select it, or a <span style="color:#fbbf24">📁 folder</span> to navigate into it.</span>
+      <button onclick="closeBrowser()" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.browser-row { cursor:pointer; border-bottom:1px solid #1e293b; }
+.browser-row:hover { background:#0f172a; }
+.crumb { color:#60a5fa; cursor:pointer; text-decoration:underline; text-decoration-style:dotted; }
+.crumb:hover { color:#93c5fd; }
+</style>
+
 {% endblock %}
