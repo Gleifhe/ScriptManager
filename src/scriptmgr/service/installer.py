@@ -74,17 +74,31 @@ def _python() -> str:
 
 
 def _app_dir() -> str:
-    """Root of the installed package / project."""
-    return str(_find_repo_root())
+    """
+    Working directory for the service process.
+    - Dev/editable install → repo root (pyproject.toml present)
+    - Production pip install → data dir (so relative .env / DB paths still resolve)
+    """
+    from scriptmgr.core.config import _default_data_dir, _find_repo_root
+    repo = _find_repo_root()
+    if repo is not None:
+        return str(repo)
+    return str(_default_data_dir())
 
 
 def install_service(data_dir: str = "") -> None:
     """Install ScriptManager as a Windows service via NSSM."""
+    from scriptmgr.core.config import _default_data_dir
     nssm = _nssm()
     python = _python()
     app_dir = _app_dir()
-    log_dir = Path(data_dir or os.path.join(app_dir, "data", "logs"))
+    resolved_data_dir = Path(data_dir) if data_dir else _default_data_dir()
+    log_dir = resolved_data_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Pass data dir to the service via env var so it doesn't depend on CWD
+    env_var_cmd = [nssm, "set", SERVICE_NAME, "AppEnvironmentExtra",
+                   f"SCRIPTMGR_DATA_DIR={resolved_data_dir}"]
 
     # Build the command: python -m scriptmgr.service.main_service
     cmds = [
@@ -97,10 +111,13 @@ def install_service(data_dir: str = "") -> None:
         [nssm, "set", SERVICE_NAME, "AppRotateFiles", "1"],
         [nssm, "set", SERVICE_NAME, "AppRotateBytes", "10485760"],  # 10 MB
         [nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"],
+        env_var_cmd,
     ]
     for cmd in cmds:
         _run(cmd)
-    print(f"[ScriptManager] Service '{SERVICE_NAME}' installed. Run: scriptmgr service start")
+    print(f"[ScriptManager] Service '{SERVICE_NAME}' installed.")
+    print(f"[ScriptManager] Data dir : {resolved_data_dir}")
+    print(f"[ScriptManager] Run      : scriptmgr service start")
 
 
 def start_service() -> None:

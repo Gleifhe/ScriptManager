@@ -54,6 +54,11 @@ where = ["src"]
 # Templates and static files live under src/scriptmgr/api/web/
 "scriptmgr.api.web" = ["templates/*.html", "templates/**/*.html", "static/**/*"]
 
+[tool.setuptools.data-files]
+# Bundle alembic migrations so they are available after a pip install
+"scriptmgr/alembic" = ["alembic/env.py", "alembic/script.py.mako"]
+"scriptmgr/alembic/versions" = ["alembic/versions/.gitkeep"]
+
 [tool.ruff]
 line-length = 110
 target-version = "py310"

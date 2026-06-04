@@ -1,29 +1,60 @@
 """Application configuration loaded from env / .env file."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _find_repo_root() -> Path:
+def _find_repo_root() -> Path | None:
     """
     Walk up from this file to find the repo root (identified by pyproject.toml).
-    Falls back to the current working directory so the package works when
-    installed via 'pip install' (non-editable) into any location.
+    Returns None when running from a proper pip install (no pyproject.toml present).
     """
     here = Path(__file__).resolve().parent
     for candidate in [here, *here.parents]:
         if (candidate / "pyproject.toml").exists():
             return candidate
-    return Path.cwd()
+    return None
 
 
-_REPO_ROOT = _find_repo_root()
-_DEFAULT_DATA_DIR = _REPO_ROOT / "data"
+def _default_data_dir() -> Path:
+    """
+    Resolve the default data directory:
+      - Dev / editable install   → <repo-root>/data
+      - Production pip install   → %PROGRAMDATA%\\ScriptManager  (Windows)
+                                   /var/lib/scriptmgr             (Linux/macOS)
+    Can always be overridden with SCRIPTMGR_DATA_DIR.
+    """
+    repo = _find_repo_root()
+    if repo is not None:
+        # Editable / development install — keep data inside the repo
+        return repo / "data"
+    # Production install — use the OS-standard application data location
+    if os.name == "nt":
+        base = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+        return base / "ScriptManager"
+    return Path("/var/lib/scriptmgr")
+
+
+def _default_env_file() -> str:
+    """
+    Look for .env next to pyproject.toml (dev) or in the data dir (production).
+    The data-dir location is resolved early so the env file can itself override
+    SCRIPTMGR_DATA_DIR if needed.
+    """
+    repo = _find_repo_root()
+    if repo is not None:
+        return str(repo / ".env")
+    # Production: env file lives alongside the database
+    return str(_default_data_dir() / ".env")
+
+
+_DEFAULT_DATA_DIR = _default_data_dir()
 _DEFAULT_DB_URL = f"sqlite:///{(_DEFAULT_DATA_DIR / 'scriptmgr.db').as_posix()}"
-_DEFAULT_ENV_FILE = str(_REPO_ROOT / ".env")
+_DEFAULT_ENV_FILE = _default_env_file()
 
 
 class Settings(BaseSettings):

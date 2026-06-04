@@ -16,3 +16,7 @@ artifacts/
 .ruff_cache/
 dist/
 build/
+
+# SQLite WAL mode temp files
+*.db-shm
+*.db-wal
