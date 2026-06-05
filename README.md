@@ -68,31 +68,50 @@ See [`docs/scheduler-review.md`](docs/scheduler-review.md) for the full best-in-
 ## Quick Start
 
 ```powershell
-# 1. Clone and create virtualenv
 git clone https://github.com/Gleifhe/ScriptManager.git
 cd ScriptManager
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# 2. Install (editable)
-pip install -e .[dev]
-
-# 3. Initialise the database
-scriptmgr db init
-
-# 4. Start the server
-scriptmgr serve
-
-# 5. Open the dashboard
-start http://localhost:8765
+.\bootstrap.ps1          # creates .venv, installs deps, inits DB
+.\.venv\Scripts\scriptmgr.exe serve
 ```
 
-> **No Redis required.** The default `inproc` mode runs everything in-process.
+Open the dashboard: **http://localhost:8765**
+
+> **No Redis required.** The default `inproc` mode runs everything in a single process.
 
 ### Optional: run with auto-reload (development)
 ```powershell
-scriptmgr serve --port 8766 --reload
+scriptmgr serve --reload
 ```
+
+---
+
+## Installation
+
+| Scenario | Command |
+|----------|---------|
+| **Workstation / dev** | `.\bootstrap.ps1` |
+| **Production** (separate install and data dirs) | `.\bootstrap.ps1 -Production` |
+| **Windows Service** (dev) | `.\install-service.ps1` *(as Administrator)* |
+| **Windows Service** (production) | `.\install-service.ps1 -VenvDir "C:\Program Files\ScriptManager\.venv" -DataDir "C:\ProgramData\ScriptManager"` *(as Administrator)* |
+| **Upgrade existing install** | `.\upgrade.ps1` |
+
+📖 Full details: **[docs/installation.md](docs/installation.md)**
+
+---
+
+## Upgrading
+
+```powershell
+# Dev install
+.\upgrade.ps1
+
+# Production install
+.\upgrade.ps1 -Production
+```
+
+Handles: git pull → pip upgrade → database migrations → service restart.
+
+📖 Full details: **[docs/upgrading.md](docs/upgrading.md)**
 
 ---
 
@@ -197,14 +216,19 @@ ScriptManager/
 │   ├── notifications/      # Email + Teams/Slack adapters
 │   └── service/            # Windows service installer + always-on heartbeat
 ├── alembic/                # DB migrations
-├── docs/                   # HTML docs (served at /help), scheduler comparison
+├── docs/
+│   ├── installation.md     # Full installation guide (dev + production)
+│   ├── upgrading.md        # Upgrade guide
+│   ├── architecture.md     # System design reference
+│   ├── quickstart.md       # Quick start guide
+│   └── scheduler-review.md # Best-in-breed scheduler comparison
 ├── samples/                # Sample scripts and a sample DAG JSON
 ├── tests/
 │   └── unit/               # DAG engine + runner unit tests
 ├── install-service.ps1     # NSSM Windows service installer (run as Admin)
 ├── restart-service.ps1     # Restart service and verify (run as Admin)
-├── bootstrap.ps1           # First-time setup helper
-├── setup_dirs.ps1          # Create data directory structure
+├── bootstrap.ps1           # First-time setup (dev + production modes)
+├── upgrade.ps1             # Upgrade existing install (git pull + pip + migrations)
 ├── pyproject.toml
 └── .env.example            # All configuration options with defaults
 ```
