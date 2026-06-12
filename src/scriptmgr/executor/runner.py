@@ -24,6 +24,43 @@ from scriptmgr.executor.log_hub import log_hub
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Process registry — maps run_id → live Popen so cancel can kill it
+# ---------------------------------------------------------------------------
+
+_proc_lock: threading.Lock = threading.Lock()
+_live_procs: dict[int, subprocess.Popen] = {}
+
+
+def _register_proc(run_id: int, proc: subprocess.Popen) -> None:
+    with _proc_lock:
+        _live_procs[run_id] = proc
+
+
+def _unregister_proc(run_id: int) -> None:
+    with _proc_lock:
+        _live_procs.pop(run_id, None)
+
+
+def kill_run(run_id: int) -> bool:
+    """Terminate the live process for *run_id*. Returns True if a process was found."""
+    with _proc_lock:
+        proc = _live_procs.get(run_id)
+    if proc is None:
+        return False
+    try:
+        proc.terminate()          # SIGTERM — graceful shutdown
+    except Exception:
+        pass
+    try:
+        proc.wait(timeout=5)      # wait up to 5s for clean exit
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()           # SIGKILL — force
+        except Exception:
+            pass
+    return True
+
 
 # ---------------------------------------------------------------------------
 # P1: Batched log writer — reduces per-line DB session overhead dramatically
@@ -233,6 +270,7 @@ def execute_script(run_id: int) -> int:
             cwd=cwd,
             env=env,
         )
+        _register_proc(run_id, proc)
 
         def _reader(pipe, stream: str) -> None:
             for line in iter(pipe.readline, ""):
@@ -250,17 +288,30 @@ def execute_script(run_id: int) -> int:
             proc.kill()
             proc.wait()
             _log("system", f"[scriptmgr] Timed out after {timeout}s")
+            _unregister_proc(run_id)
             buf.close()
             _finish_run(run_id, RunStatus.TIMED_OUT, -9)
             return -9
 
         t_out.join()
         t_err.join()
+        _unregister_proc(run_id)
+
+        # If the run was cancelled via the UI while still running, honour it
+        with session_scope() as db:
+            current = db.get(Run, run_id)
+            if current and current.status == RunStatus.CANCELLED:
+                _log("system", "[scriptmgr] Run cancelled")
+                buf.close()
+                _finish_run(run_id, RunStatus.CANCELLED, proc.returncode)
+                return proc.returncode
+
         exit_code = proc.returncode
 
     except Exception as exc:
         logger.exception("Error executing run %s", run_id)
         _log("system", f"[scriptmgr] Execution error: {exc}")
+        _unregister_proc(run_id)
         exit_code = -1
 
     # Flush any remaining buffered log lines before finalising the run

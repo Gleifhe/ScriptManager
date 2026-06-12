@@ -91,6 +91,10 @@ class Settings(BaseSettings):
 
     log_retention_days: int = 30
 
+    # Optional API key — if set, all /api/* requests must include
+    # Authorization: Bearer <key>  (UI routes are exempt; localhost-only is default)
+    api_key: str = ""
+
     def ensure_dirs(self) -> None:
         for sub in ("", "logs", "runs", "artifacts"):
             (self.data_dir / sub).mkdir(parents=True, exist_ok=True)

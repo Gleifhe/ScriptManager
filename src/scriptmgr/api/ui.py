@@ -385,6 +385,9 @@ def runs_cancel(run_id: int, db: Session = Depends(get_db)):
     if r and r.status in (RunStatus.QUEUED, RunStatus.RUNNING):
         r.status = RunStatus.CANCELLED
         db.commit()
+        # Actually kill the subprocess if it is running
+        from scriptmgr.executor.runner import kill_run
+        kill_run(run_id)
     return RedirectResponse(f"/runs/{run_id}", status_code=303)
 
 
@@ -409,6 +412,7 @@ def schedules_create(
     expression: str = Form(...),
     script_id: str = Form(""),
     workflow_id: str = Form(""),
+    rerun_delay_sec: int = Form(5),
     db: Session = Depends(get_db),
 ):
     sched = Schedule(
@@ -416,6 +420,7 @@ def schedules_create(
         expression=expression,
         script_id=int(script_id) if script_id else None,
         workflow_id=int(workflow_id) if workflow_id else None,
+        rerun_delay_sec=rerun_delay_sec,
     )
     db.add(sched); db.commit()
 
@@ -423,6 +428,32 @@ def schedules_create(
     db.refresh(sched)
     add_schedule(sched)
 
+    return RedirectResponse("/schedules", status_code=303)
+
+
+@router.post("/schedules/{sched_id}/edit", include_in_schema=False)
+def schedules_edit(
+    sched_id: int,
+    trigger_type: str = Form(...),
+    expression: str = Form(...),
+    script_id: str = Form(""),
+    workflow_id: str = Form(""),
+    rerun_delay_sec: int = Form(5),
+    db: Session = Depends(get_db),
+):
+    s = db.get(Schedule, sched_id)
+    if s:
+        s.trigger_type     = TriggerType(trigger_type)
+        s.expression       = expression
+        s.script_id        = int(script_id)   if script_id   else None
+        s.workflow_id      = int(workflow_id) if workflow_id else None
+        s.rerun_delay_sec  = rerun_delay_sec
+        db.commit()
+        db.refresh(s)
+        from scriptmgr.scheduler.apscheduler import add_schedule, remove_schedule
+        remove_schedule(sched_id)
+        if s.enabled:
+            add_schedule(s)
     return RedirectResponse("/schedules", status_code=303)
 
 

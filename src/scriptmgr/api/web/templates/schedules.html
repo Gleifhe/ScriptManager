@@ -2,60 +2,265 @@
 {% set active = 'schedules' %}
 {% block title %}Schedules — ScriptManager{% endblock %}
 {% block content %}
+<style>
+.sched-tabs{display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.sched-tab{padding:.5rem 1.1rem;border-radius:.5rem;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:.9rem;transition:all .15s}
+.sched-tab.active{background:#3b82f6;border-color:#3b82f6;color:#fff;font-weight:600}
+.sched-tab:hover:not(.active){border-color:#64748b;color:#e2e8f0}
+.sched-panel{display:none}
+.sched-panel.active{display:block}
+.sched-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.9rem}
+.sched-row label{color:#94a3b8;font-size:.9rem;min-width:90px}
+.sched-input{padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem}
+.sched-input:focus{outline:none;border-color:#3b82f6}
+.day-btn{padding:.35rem .65rem;border-radius:.35rem;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:.8rem;user-select:none;transition:all .15s}
+.day-btn.on{background:#1d4ed8;border-color:#3b82f6;color:#bfdbfe}
+.preview-box{background:#0f172a;border:1px solid #334155;border-radius:.5rem;padding:.75rem 1rem;color:#38bdf8;font-size:.95rem;margin:1rem 0;min-height:2.6rem}
+</style>
+
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
   <h1 class="page-title" style="margin:0">Schedules</h1>
-  <button onclick="document.getElementById('new-sched-form').style.display='block'" class="btn btn-primary">+ New Schedule</button>
+  <button id="open-form-btn" onclick="openForm()" class="btn btn-primary">+ New Schedule</button>
 </div>
 
-<div id="new-sched-form" style="display:none" class="card" style="margin-bottom:1.5rem">
-  <h2 style="font-size:1rem;color:#94a3b8;margin-bottom:1rem">NEW SCHEDULE</h2>
-  <form method="post" action="/schedules">
-    <div style="display:grid;gap:.75rem;max-width:600px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-        <div>
-          <label style="font-size:.85rem;color:#94a3b8">Trigger Type *</label>
-          <select name="trigger_type" required style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
-            {% for t in trigger_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:.85rem;color:#94a3b8">Expression *</label>
-          <input name="expression" required placeholder="e.g. 0 * * * * or 60" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+{# ── NEW SCHEDULE FORM ─────────────────────────────────────────────────── #}
+<div id="new-sched-form" style="display:none;margin-bottom:1.5rem" class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+    <h2 style="margin:0;font-size:1rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em">New Schedule</h2>
+    <button type="button" onclick="closeForm()" class="btn" style="background:#334155;color:#94a3b8;padding:.25rem .75rem;font-size:.8rem">✕ Close</button>
+  </div>
+
+  <form method="post" action="/schedules" id="sched-form" onsubmit="return buildExpression()">
+    {# Hidden fields assembled by JS before submit #}
+    <input type="hidden" name="trigger_type" id="h-trigger-type" value="interval">
+    <input type="hidden" name="expression"   id="h-expression"   value="3600">
+    <input type="hidden" name="rerun_delay_sec" id="h-rerun-delay" value="30">
+
+    {# ── Step 1: What to run ── #}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem">
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.25rem">Script to run</label>
+        <select name="script_id" class="sched-input" style="width:100%">
+          <option value="">— none —</option>
+          {% for s in scripts %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.25rem">Or workflow to run</label>
+        <select name="workflow_id" class="sched-input" style="width:100%">
+          <option value="">— none —</option>
+          {% for w in workflows %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {# ── Step 2: When to run ── #}
+    <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.5rem">When to run:</label>
+    <div class="sched-tabs">
+      <button type="button" class="sched-tab active" onclick="showTab('repeat')">🔁 Repeat Every</button>
+      <button type="button" class="sched-tab"        onclick="showTab('cron')">📅 On a Schedule</button>
+      <button type="button" class="sched-tab"        onclick="showTab('once')">🕐 Run Once</button>
+      <button type="button" class="sched-tab"        onclick="showTab('continuous')">♾ Keep Running</button>
+    </div>
+
+    {# Panel: Repeat Every #}
+    <div id="panel-repeat" class="sched-panel active">
+      <div class="sched-row">
+        <label>Every</label>
+        <input type="number" id="repeat-count" class="sched-input" value="1" min="1" max="9999" style="width:80px" oninput="updatePreview()">
+        <select id="repeat-unit" class="sched-input" onchange="updatePreview()">
+          <option value="60">minutes</option>
+          <option value="3600" selected>hours</option>
+          <option value="86400">days</option>
+          <option value="604800">weeks</option>
+        </select>
+      </div>
+    </div>
+
+    {# Panel: On a Schedule (cron builder) #}
+    <div id="panel-cron" class="sched-panel">
+      <div class="sched-row">
+        <label>Frequency</label>
+        <select id="cron-freq" class="sched-input" onchange="updateCronSub();updatePreview()">
+          <option value="daily">Every day</option>
+          <option value="weekdays">Every weekday (Mon–Fri)</option>
+          <option value="weekly">Weekly on specific days</option>
+          <option value="monthly">Monthly on a specific day</option>
+        </select>
+      </div>
+      <div id="cron-days-row" class="sched-row" style="display:none">
+        <label>Days</label>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+          <span class="day-btn on" data-val="1" onclick="toggleDay(this)">Mon</span>
+          <span class="day-btn"   data-val="2" onclick="toggleDay(this)">Tue</span>
+          <span class="day-btn"   data-val="3" onclick="toggleDay(this)">Wed</span>
+          <span class="day-btn"   data-val="4" onclick="toggleDay(this)">Thu</span>
+          <span class="day-btn"   data-val="5" onclick="toggleDay(this)">Fri</span>
+          <span class="day-btn"   data-val="6" onclick="toggleDay(this)">Sat</span>
+          <span class="day-btn"   data-val="0" onclick="toggleDay(this)">Sun</span>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div id="cron-dom-row" class="sched-row" style="display:none">
+        <label>Day of month</label>
+        <input type="number" id="cron-dom" class="sched-input" value="1" min="1" max="28" style="width:80px" oninput="updatePreview()">
+        <span style="font-size:.8rem;color:#64748b">(1–28 to work every month)</span>
+      </div>
+      <div class="sched-row">
+        <label>At time</label>
+        <input type="time" id="cron-time" class="sched-input" value="09:00" onchange="updatePreview()">
+        <span style="font-size:.8rem;color:#64748b">server local time</span>
+      </div>
+    </div>
+
+    {# Panel: Run Once #}
+    <div id="panel-once" class="sched-panel">
+      <div class="sched-row">
+        <label>Date</label>
+        <input type="date" id="once-date" class="sched-input" onchange="updatePreview()">
+        <label>Time</label>
+        <input type="time" id="once-time" class="sched-input" value="09:00" onchange="updatePreview()">
+      </div>
+      <div style="font-size:.8rem;color:#64748b;margin-left:97px">Server local time. The script runs once at this moment.</div>
+    </div>
+
+    {# Panel: Keep Running (continuous) #}
+    <div id="panel-continuous" class="sched-panel">
+      <div class="sched-row">
+        <label>Restart after</label>
+        <input type="number" id="cont-delay" class="sched-input" value="30" min="1" style="width:90px" oninput="updatePreview()">
+        <span style="color:#94a3b8">seconds after the script stops</span>
+      </div>
+      <div style="font-size:.8rem;color:#64748b;margin-left:97px">The script will restart automatically every time it exits.</div>
+    </div>
+
+    {# Live preview #}
+    <div class="preview-box" id="sched-preview">⏱ Choose a schedule above…</div>
+
+    <div style="display:flex;gap:.5rem">
+      <button type="submit" class="btn btn-primary">Create Schedule</button>
+      <button type="button" onclick="closeForm()" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+    </div>
+  </form>
+</div>
+
+{# ── EDIT MODAL ───────────────────────────────────────────────────────── #}
+<div id="edit-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;overflow-y:auto;padding:2rem 1rem">
+  <div style="max-width:680px;margin:0 auto;background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <h2 style="margin:0;font-size:1rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em">Edit Schedule <span id="edit-modal-id" style="color:#38bdf8"></span></h2>
+      <button type="button" onclick="closeEdit()" class="btn" style="background:#334155;color:#94a3b8;padding:.25rem .75rem;font-size:.8rem">✕ Close</button>
+    </div>
+
+    <form method="post" id="edit-form" action="" onsubmit="return buildEditExpression()">
+      <input type="hidden" name="trigger_type"   id="eh-trigger-type" value="interval">
+      <input type="hidden" name="expression"     id="eh-expression"   value="3600">
+      <input type="hidden" name="rerun_delay_sec" id="eh-rerun-delay"  value="5">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem">
         <div>
-          <label style="font-size:.85rem;color:#94a3b8">Script (or leave blank)</label>
-          <select name="script_id" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.25rem">Script to run</label>
+          <select name="script_id" id="e-script" class="sched-input" style="width:100%">
             <option value="">— none —</option>
             {% for s in scripts %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
           </select>
         </div>
         <div>
-          <label style="font-size:.85rem;color:#94a3b8">Workflow (or leave blank)</label>
-          <select name="workflow_id" style="width:100%;margin-top:.25rem;padding:.5rem .75rem;background:#0f172a;border:1px solid #334155;border-radius:.4rem;color:#e2e8f0;font-size:.9rem">
+          <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.25rem">Or workflow to run</label>
+          <select name="workflow_id" id="e-workflow" class="sched-input" style="width:100%">
             <option value="">— none —</option>
             {% for w in workflows %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
           </select>
         </div>
       </div>
-      <div style="color:#94a3b8;font-size:.8rem">
-        Cron: <code>0 * * * *</code> = every hour &nbsp;|&nbsp;
-        Interval: seconds e.g. <code>300</code> = every 5 min &nbsp;|&nbsp;
-        Continuous: rerun delay in seconds
+
+      <label style="font-size:.85rem;color:#94a3b8;display:block;margin-bottom:.5rem">When to run:</label>
+      <div class="sched-tabs" id="edit-tabs">
+        <button type="button" class="sched-tab edit-tab active" onclick="showEditTab('repeat')">🔁 Repeat Every</button>
+        <button type="button" class="sched-tab edit-tab"        onclick="showEditTab('cron')">📅 On a Schedule</button>
+        <button type="button" class="sched-tab edit-tab"        onclick="showEditTab('once')">🕐 Run Once</button>
+        <button type="button" class="sched-tab edit-tab"        onclick="showEditTab('continuous')">♾ Keep Running</button>
       </div>
+
+      <div id="epanel-repeat" class="sched-panel active">
+        <div class="sched-row">
+          <label>Every</label>
+          <input type="number" id="e-repeat-count" class="sched-input" value="1" min="1" max="9999" style="width:80px" oninput="updateEditPreview()">
+          <select id="e-repeat-unit" class="sched-input" onchange="updateEditPreview()">
+            <option value="60">minutes</option>
+            <option value="3600" selected>hours</option>
+            <option value="86400">days</option>
+            <option value="604800">weeks</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="epanel-cron" class="sched-panel">
+        <div class="sched-row">
+          <label>Frequency</label>
+          <select id="e-cron-freq" class="sched-input" onchange="updateEditCronSub();updateEditPreview()">
+            <option value="daily">Every day</option>
+            <option value="weekdays">Every weekday (Mon–Fri)</option>
+            <option value="weekly">Weekly on specific days</option>
+            <option value="monthly">Monthly on a specific day</option>
+          </select>
+        </div>
+        <div id="e-cron-days-row" class="sched-row" style="display:none">
+          <label>Days</label>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+            <span class="day-btn on" data-val="1" onclick="toggleDay(this)">Mon</span>
+            <span class="day-btn"   data-val="2" onclick="toggleDay(this)">Tue</span>
+            <span class="day-btn"   data-val="3" onclick="toggleDay(this)">Wed</span>
+            <span class="day-btn"   data-val="4" onclick="toggleDay(this)">Thu</span>
+            <span class="day-btn"   data-val="5" onclick="toggleDay(this)">Fri</span>
+            <span class="day-btn"   data-val="6" onclick="toggleDay(this)">Sat</span>
+            <span class="day-btn"   data-val="0" onclick="toggleDay(this)">Sun</span>
+          </div>
+        </div>
+        <div id="e-cron-dom-row" class="sched-row" style="display:none">
+          <label>Day of month</label>
+          <input type="number" id="e-cron-dom" class="sched-input" value="1" min="1" max="28" style="width:80px" oninput="updateEditPreview()">
+        </div>
+        <div class="sched-row">
+          <label>At time</label>
+          <input type="time" id="e-cron-time" class="sched-input" value="09:00" onchange="updateEditPreview()">
+          <span style="font-size:.8rem;color:#64748b">server local time</span>
+        </div>
+      </div>
+
+      <div id="epanel-once" class="sched-panel">
+        <div class="sched-row">
+          <label>Date</label>
+          <input type="date" id="e-once-date" class="sched-input" onchange="updateEditPreview()">
+          <label>Time</label>
+          <input type="time" id="e-once-time" class="sched-input" value="09:00" onchange="updateEditPreview()">
+        </div>
+      </div>
+
+      <div id="epanel-continuous" class="sched-panel">
+        <div class="sched-row">
+          <label>Restart after</label>
+          <input type="number" id="e-cont-delay" class="sched-input" value="30" min="1" style="width:90px" oninput="updateEditPreview()">
+          <span style="color:#94a3b8">seconds after the script stops</span>
+        </div>
+      </div>
+
+      <div class="preview-box" id="edit-preview">⏱ …</div>
+
       <div style="display:flex;gap:.5rem">
-        <button type="submit" class="btn btn-primary">Create</button>
-        <button type="button" onclick="document.getElementById('new-sched-form').style.display='none'" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <button type="button" onclick="closeEdit()" class="btn" style="background:#334155;color:#e2e8f0">Cancel</button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 </div>
 
+{# ── SCHEDULE TABLE ────────────────────────────────────────────────────── #}
 <div class="card">
   {% if schedules %}
   <table>
-    <thead><tr><th>#</th><th>Target</th><th>Type</th><th>Expression</th><th>Enabled</th><th>Created</th><th></th></tr></thead>
+    <thead>
+      <tr><th>#</th><th>Target</th><th>Schedule</th><th>Enabled</th><th>Created</th><th></th></tr>
+    </thead>
     <tbody>
     {% for s in schedules %}
     <tr>
@@ -65,8 +270,14 @@
         {% elif s.workflow %}🔀 {{ s.workflow.name }}
         {% else %}—{% endif %}
       </td>
-      <td><span class="badge badge-default">{{ s.trigger_type.value }}</span></td>
-      <td><code style="font-size:.8rem">{{ s.expression }}</code></td>
+      <td>
+        <span class="expr-label"
+              data-type="{{ s.trigger_type.value }}"
+              data-expr="{{ s.expression }}"
+              data-rerun="{{ s.rerun_delay_sec }}">
+          <code style="font-size:.8rem">{{ s.expression }}</code>
+        </span>
+      </td>
       <td>
         <form method="post" action="/schedules/{{ s.id }}/toggle" style="display:inline">
           <button class="btn btn-sm" style="background:{% if s.enabled %}#14532d;color:#86efac{% else %}#450a0a;color:#fca5a5{% endif %}">
@@ -75,8 +286,15 @@
         </form>
       </td>
       <td style="color:#94a3b8">{{ s.created_at.strftime('%m/%d/%Y') if s.created_at else '—' }}</td>
-      <td>
-        <form method="post" action="/schedules/{{ s.id }}/delete" onsubmit="return confirm('Delete schedule?')">
+      <td style="display:flex;gap:.4rem;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#1e3a5f;color:#93c5fd"
+          onclick="openEdit({{ s.id }},
+            '{{ s.trigger_type.value }}',
+            '{{ s.expression | replace("'", "\\'") }}',
+            {{ s.rerun_delay_sec }},
+            '{{ s.script_id or '' }}',
+            '{{ s.workflow_id or '' }}')">Edit</button>
+        <form method="post" action="/schedules/{{ s.id }}/delete" onsubmit="return confirm('Delete this schedule?')">
           <button class="btn btn-sm btn-danger">Delete</button>
         </form>
       </td>
@@ -85,7 +303,301 @@
     </tbody>
   </table>
   {% else %}
-  <div class="alert alert-info">No schedules yet. Create one above to automate your scripts.</div>
+  <div class="alert alert-info">No schedules yet. Click <strong>+ New Schedule</strong> above to automate your scripts.</div>
   {% endif %}
 </div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let activeTab = 'repeat';
+let editActiveTab = 'repeat';
+
+// ── Form open / close ──────────────────────────────────────────────────────
+function openForm() {
+  document.getElementById('new-sched-form').style.display = 'block';
+  document.getElementById('open-form-btn').style.display = 'none';
+}
+function closeForm() {
+  document.getElementById('new-sched-form').style.display = 'none';
+  document.getElementById('open-form-btn').style.display = '';
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.sched-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sched-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.sched-tab').forEach(b => {
+    if ((b.getAttribute('onclick') || '').includes("'" + name + "'")) b.classList.add('active');
+  });
+  activeTab = name;
+  updatePreview();
+}
+
+// ── Cron sub-option visibility ─────────────────────────────────────────────
+function updateCronSub() {
+  const freq = document.getElementById('cron-freq').value;
+  document.getElementById('cron-days-row').style.display = (freq === 'weekly')  ? 'flex' : 'none';
+  document.getElementById('cron-dom-row').style.display  = (freq === 'monthly') ? 'flex' : 'none';
+}
+
+function toggleDay(el) { el.classList.toggle('on'); updatePreview(); }
+
+// ── Compute schedule values ────────────────────────────────────────────────
+function computeSchedule() {
+  if (activeTab === 'repeat') {
+    const count = Math.max(1, parseInt(document.getElementById('repeat-count').value) || 1);
+    const unit  = parseInt(document.getElementById('repeat-unit').value);
+    return { type: 'interval', expr: String(count * unit), rerunDelay: 5 };
+  }
+  if (activeTab === 'once') {
+    const d = document.getElementById('once-date').value;
+    const t = document.getElementById('once-time').value || '09:00';
+    return { type: 'date', expr: d ? d + 'T' + t + ':00' : '', rerunDelay: 5 };
+  }
+  if (activeTab === 'cron') {
+    const freq = document.getElementById('cron-freq').value;
+    const [hh, mm] = (document.getElementById('cron-time').value || '09:00').split(':').map(Number);
+    let expr = '';
+    if (freq === 'daily')    expr = `${mm} ${hh} * * *`;
+    else if (freq === 'weekdays') expr = `${mm} ${hh} * * 1-5`;
+    else if (freq === 'weekly') {
+      const days = [...document.querySelectorAll('.day-btn.on')].map(b => b.dataset.val).join(',');
+      expr = days ? `${mm} ${hh} * * ${days}` : '';
+    } else if (freq === 'monthly') {
+      const dom = Math.min(28, Math.max(1, parseInt(document.getElementById('cron-dom').value) || 1));
+      expr = `${mm} ${hh} ${dom} * *`;
+    }
+    return { type: 'cron', expr, rerunDelay: 5 };
+  }
+  if (activeTab === 'continuous') {
+    const delay = Math.max(1, parseInt(document.getElementById('cont-delay').value) || 30);
+    return { type: 'continuous', expr: '0', rerunDelay: delay };
+  }
+  return { type: 'interval', expr: '3600', rerunDelay: 5 };
+}
+
+// ── Build hidden fields on submit ──────────────────────────────────────────
+function buildExpression() {
+  const { type, expr, rerunDelay } = computeSchedule();
+  if (!expr) {
+    if (activeTab === 'once')   { alert('Please pick a date for the one-time run.'); return false; }
+    if (activeTab === 'cron')   { alert('Please select at least one day for the weekly schedule.'); return false; }
+    alert('Please fill in the schedule details.'); return false;
+  }
+  document.getElementById('h-trigger-type').value = type;
+  document.getElementById('h-expression').value   = expr;
+  document.getElementById('h-rerun-delay').value  = rerunDelay;
+  return true;
+}
+
+// ── Live preview ───────────────────────────────────────────────────────────
+function updatePreview() {
+  const { type, expr, rerunDelay } = computeSchedule();
+  const text = friendlyExpr(type, expr, rerunDelay);
+  document.getElementById('sched-preview').textContent = text ? '⏱ ' + text : '⏱ Choose a schedule above…';
+}
+
+// ── Human-readable formatter ───────────────────────────────────────────────
+function friendlyExpr(type, expr, rerunDelay) {
+  if (type === 'interval') {
+    const secs = parseInt(expr);
+    if (isNaN(secs) || secs <= 0) return '';
+    if (secs < 60)    { const n = secs;              return `Every ${n} second${n!==1?'s':''}`; }
+    if (secs < 3600)  { const n = Math.round(secs/60);    return `Every ${n} minute${n!==1?'s':''}`; }
+    if (secs < 86400) { const n = Math.round(secs/3600);  return `Every ${n} hour${n!==1?'s':''}`; }
+    if (secs < 604800){ const n = Math.round(secs/86400); return `Every ${n} day${n!==1?'s':''}`; }
+    const n = Math.round(secs/604800); return `Every ${n} week${n!==1?'s':''}`;
+  }
+  if (type === 'date') {
+    if (!expr) return 'Once — pick a date and time';
+    try {
+      const dt = new Date(expr);
+      return 'Once on ' + dt.toLocaleString(undefined, {weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    } catch(e) { return 'Once on ' + expr; }
+  }
+  if (type === 'cron')       return friendlyCron(expr);
+  if (type === 'continuous') return `Runs continuously — restarts ${rerunDelay}s after it stops`;
+  return expr;
+}
+
+const DAY_NAMES = {0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
+function friendlyCron(expr) {
+  if (!expr) return 'On a schedule — fill in options above';
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length < 5) return expr;
+  const [min, hour, dom, , dow] = parts;
+  const h   = hour.padStart(2,'0'), m = min.padStart(2,'0');
+  const tod = (() => {
+    const hh = parseInt(h), mm2 = parseInt(m);
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const hd = hh % 12 || 12;
+    return `${hd}:${m} ${ampm}`;
+  })();
+  if (dow === '*' && dom === '*')  return `Every day at ${tod}`;
+  if (dow === '1-5')               return `Every weekday (Mon–Fri) at ${tod}`;
+  if (dom === '*' && dow !== '*') {
+    const dayNums  = dow.split(',').map(Number);
+    const dayNames = dayNums.map(n => DAY_NAMES[n] ?? n).join(', ');
+    return `Every week on ${dayNames} at ${tod}`;
+  }
+  if (dow === '*' && dom !== '*') {
+    return `Monthly on the ${nth(parseInt(dom))} at ${tod}`;
+  }
+  return expr;
+}
+
+function nth(n) {
+  const s = ['th','st','nd','rd'], v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+// ── Edit modal open / close ──────────────────────────────────────────────
+function openEdit(id, type, expr, rerunDelay, scriptId, workflowId) {
+  document.getElementById('edit-modal-overlay').style.display = 'block';
+  document.getElementById('edit-modal-id').textContent = '#' + id;
+  document.getElementById('edit-form').action = '/schedules/' + id + '/edit';
+
+  // pre-select target
+  const ss = document.getElementById('e-script');
+  const sw = document.getElementById('e-workflow');
+  ss.value = scriptId || '';
+  sw.value = workflowId || '';
+
+  // determine tab + pre-populate fields
+  if (type === 'continuous') {
+    showEditTab('continuous');
+    document.getElementById('e-cont-delay').value = rerunDelay;
+  } else if (type === 'date') {
+    showEditTab('once');
+    const parts = expr.split('T');
+    document.getElementById('e-once-date').value = parts[0] || '';
+    document.getElementById('e-once-time').value = (parts[1] || '09:00').slice(0,5);
+  } else if (type === 'interval') {
+    showEditTab('repeat');
+    const secs = parseInt(expr) || 3600;
+    let unit = 3600, count = 1;
+    if (secs % 604800 === 0) { unit = 604800; count = secs / 604800; }
+    else if (secs % 86400 === 0) { unit = 86400;  count = secs / 86400; }
+    else if (secs % 3600 === 0)  { unit = 3600;   count = secs / 3600; }
+    else if (secs % 60 === 0)    { unit = 60;     count = secs / 60; }
+    else                          { unit = 1;      count = secs; }
+    document.getElementById('e-repeat-count').value = count;
+    document.getElementById('e-repeat-unit').value  = unit;
+  } else if (type === 'cron') {
+    showEditTab('cron');
+    const parts = expr.trim().split(/\s+/);
+    if (parts.length >= 5) {
+      const [min, hour, dom, , dow] = parts;
+      const hh = hour.padStart(2,'0'), mm = min.padStart(2,'0');
+      document.getElementById('e-cron-time').value = hh + ':' + mm;
+      const freq = dow === '*' && dom === '*' ? 'daily'
+                 : dow === '1-5'             ? 'weekdays'
+                 : dom !== '*'               ? 'monthly'
+                 :                             'weekly';
+      document.getElementById('e-cron-freq').value = freq;
+      updateEditCronSub();
+      if (freq === 'monthly') document.getElementById('e-cron-dom').value = dom;
+      if (freq === 'weekly') {
+        document.querySelectorAll('#epanel-cron .day-btn').forEach(b => b.classList.remove('on'));
+        dow.split(',').forEach(v => {
+          const b = document.querySelector(`#epanel-cron .day-btn[data-val="${v}"]`);
+          if (b) b.classList.add('on');
+        });
+      }
+    }
+  }
+  updateEditPreview();
+  document.body.style.overflow = 'hidden';
+}
+function closeEdit() {
+  document.getElementById('edit-modal-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+// Close on overlay click outside the dialog box
+document.getElementById('edit-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+
+// ── Edit tab switching ─────────────────────────────────────────────────────
+function showEditTab(name) {
+  document.querySelectorAll('[id^="epanel-"]').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.edit-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('epanel-' + name).classList.add('active');
+  document.querySelectorAll('.edit-tab').forEach(b => {
+    if ((b.getAttribute('onclick') || '').includes("'" + name + "'")) b.classList.add('active');
+  });
+  editActiveTab = name;
+  updateEditPreview();
+}
+function updateEditCronSub() {
+  const freq = document.getElementById('e-cron-freq').value;
+  document.getElementById('e-cron-days-row').style.display = (freq === 'weekly')  ? 'flex' : 'none';
+  document.getElementById('e-cron-dom-row').style.display  = (freq === 'monthly') ? 'flex' : 'none';
+}
+function computeEditSchedule() {
+  if (editActiveTab === 'repeat') {
+    const count = Math.max(1, parseInt(document.getElementById('e-repeat-count').value) || 1);
+    const unit  = parseInt(document.getElementById('e-repeat-unit').value);
+    return { type: 'interval', expr: String(count * unit), rerunDelay: 5 };
+  }
+  if (editActiveTab === 'once') {
+    const d = document.getElementById('e-once-date').value;
+    const t = document.getElementById('e-once-time').value || '09:00';
+    return { type: 'date', expr: d ? d + 'T' + t + ':00' : '', rerunDelay: 5 };
+  }
+  if (editActiveTab === 'cron') {
+    const freq = document.getElementById('e-cron-freq').value;
+    const [hh, mm] = (document.getElementById('e-cron-time').value || '09:00').split(':').map(Number);
+    let expr = '';
+    if (freq === 'daily')         expr = `${mm} ${hh} * * *`;
+    else if (freq === 'weekdays') expr = `${mm} ${hh} * * 1-5`;
+    else if (freq === 'weekly') {
+      const days = [...document.querySelectorAll('#epanel-cron .day-btn.on')].map(b => b.dataset.val).join(',');
+      expr = days ? `${mm} ${hh} * * ${days}` : '';
+    } else if (freq === 'monthly') {
+      const dom = Math.min(28, Math.max(1, parseInt(document.getElementById('e-cron-dom').value) || 1));
+      expr = `${mm} ${hh} ${dom} * *`;
+    }
+    return { type: 'cron', expr, rerunDelay: 5 };
+  }
+  if (editActiveTab === 'continuous') {
+    const delay = Math.max(1, parseInt(document.getElementById('e-cont-delay').value) || 30);
+    return { type: 'continuous', expr: '0', rerunDelay: delay };
+  }
+  return { type: 'interval', expr: '3600', rerunDelay: 5 };
+}
+function buildEditExpression() {
+  const { type, expr, rerunDelay } = computeEditSchedule();
+  if (!expr) {
+    if (editActiveTab === 'once') { alert('Please pick a date.'); return false; }
+    if (editActiveTab === 'cron') { alert('Please select at least one day.'); return false; }
+    return false;
+  }
+  document.getElementById('eh-trigger-type').value = type;
+  document.getElementById('eh-expression').value   = expr;
+  document.getElementById('eh-rerun-delay').value  = rerunDelay;
+  return true;
+}
+function updateEditPreview() {
+  const { type, expr, rerunDelay } = computeEditSchedule();
+  const text = friendlyExpr(type, expr, rerunDelay);
+  document.getElementById('edit-preview').textContent = text ? '⏱ ' + text : '⏱ …';
+}
+
+// ── Format existing table rows ─────────────────────────────────────────────
+document.querySelectorAll('.expr-label').forEach(el => {
+  const type = el.dataset.type, expr = el.dataset.expr, rerun = parseInt(el.dataset.rerun) || 5;
+  const friendly = friendlyExpr(type, expr, rerun);
+  if (friendly && friendly !== expr) {
+    el.innerHTML = `<span style="color:#e2e8f0;font-size:.9rem">${friendly}</span>`
+                 + `<br><code style="font-size:.73rem;color:#475569">${type}: ${expr}</code>`;
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+updateCronSub();
+updatePreview();
+document.getElementById('once-date').value = new Date().toISOString().split('T')[0];
+</script>
 {% endblock %}

@@ -85,6 +85,12 @@ try {
     Fail "Python not found. Install Python 3.10+ from https://python.org and re-run."
 }
 
+# Reject Microsoft Store Python — venvs from it cannot be used by Windows services
+$pyCommand = Get-Command $Python -ErrorAction SilentlyContinue
+if ($pyCommand -and $pyCommand.Source -match "WindowsApps") {
+    Fail "The 'python' command points to Microsoft Store Python. Install CPython from python.org or winget and re-run with -Python pointing to that python.exe."
+}
+
 if ($pyVersion -notmatch "Python (\d+)\.(\d+)") {
     Fail "Unexpected Python version string: $pyVersion"
 }

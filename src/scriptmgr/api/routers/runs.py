@@ -63,6 +63,10 @@ def cancel_run(run_id: int, db: Session = Depends(get_db)):
         raise HTTPException(409, f"Run is already {r.status.value}")
     r.status = RunStatus.CANCELLED
     db.add(r)
+    db.commit()
+    from scriptmgr.executor.runner import kill_run
+    kill_run(run_id)
+    db.refresh(r)
     return r
 
 

@@ -51,6 +51,30 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Optional API key middleware — protects /api/* and /ws/* routes.
+    # Web UI routes (/dashboard, /scripts, etc.) are always accessible.
+    # Enabled only when SCRIPTMGR_API_KEY is set in .env / environment.
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request as StarletteRequest
+    from starlette.responses import JSONResponse
+
+    class ApiKeyMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: StarletteRequest, call_next):
+            settings = get_settings()
+            key = settings.api_key
+            if not key:
+                return await call_next(request)  # disabled — no key configured
+            path = request.url.path
+            # Only guard /api/* and /ws/* — leave the web UI open
+            if not (path.startswith("/api/") or path.startswith("/ws/")):
+                return await call_next(request)
+            auth = request.headers.get("Authorization", "")
+            if auth == f"Bearer {key}":
+                return await call_next(request)
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+
+    application.add_middleware(ApiKeyMiddleware)
+
     # API routers
     from scriptmgr.api.routers import browse, groups, runs, schedules, scripts, services, workflows
 

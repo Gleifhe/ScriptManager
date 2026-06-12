@@ -77,6 +77,18 @@ if (-not (Test-Path $Python)) {
     exit 1
 }
 
+# Reject venvs built from Microsoft Store Python — LocalSystem cannot launch them
+$PyVenvConfig = Join-Path $VenvDir "pyvenv.cfg"
+if (Test-Path $PyVenvConfig) {
+    $PyVenvText = Get-Content $PyVenvConfig -Raw
+    if ($PyVenvText -match "WindowsApps|PythonSoftwareFoundation\.Python") {
+        Write-Host "ERROR: .venv was created from Microsoft Store Python." -ForegroundColor Red
+        Write-Host "       Windows services running as LocalSystem cannot launch Store Python venvs." -ForegroundColor Yellow
+        Write-Host "       Install CPython from python.org/winget, delete .venv, run bootstrap.ps1, then retry." -ForegroundColor Yellow
+        exit 1
+    }
+}
+
 # ── Find NSSM ─────────────────────────────────────────────────────────────────
 $NssmPath = (Get-Command nssm -ErrorAction SilentlyContinue).Source
 if (-not $NssmPath) {

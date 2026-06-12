@@ -62,12 +62,37 @@ def stop_scheduler() -> None:
 # ---------------------------------------------------------------------------
 
 def _reload_all_schedules() -> None:
-    """Register all enabled schedules from the DB into APScheduler."""
+    """Sync APScheduler jobs with the DB on startup.
+
+    - Registers all enabled schedules (replace_existing=True keeps them fresh).
+    - Removes any APScheduler jobs whose schedule_id no longer exists in the DB
+      or whose schedule is disabled — prevents stale jobs from past sessions.
+    """
+    sched = get_scheduler()
     with session_scope() as db:
         schedules = db.query(Schedule).filter(Schedule.enabled.is_(True)).all()
+        enabled_ids = {s.id for s in schedules}
+        all_ids = {s.id for s in db.query(Schedule.id).all()}
         for s in schedules:
             _register(s)
-    logger.info("Reloaded %d schedule(s)", len(schedules))
+
+    # Prune: remove APScheduler jobs for deleted or disabled schedules
+    for job in sched.get_jobs():
+        if not job.id.startswith("schedule_"):
+            continue  # internal jobs (retention, etc.) — leave alone
+        try:
+            sid = int(job.id.split("_", 1)[1])
+        except (ValueError, IndexError):
+            continue
+        if sid not in enabled_ids:
+            # Schedule is disabled or no longer exists — remove from job store
+            try:
+                sched.remove_job(job.id)
+                logger.info("Pruned stale APScheduler job %s (schedule %s not enabled)", job.id, sid)
+            except Exception:
+                pass
+
+    logger.info("Reloaded %d schedule(s), pruned stale jobs", len(schedules))
 
 
 def _register_retention_job() -> None:
