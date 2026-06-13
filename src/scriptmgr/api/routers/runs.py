@@ -61,7 +61,10 @@ def cancel_run(run_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Run not found")
     if r.status not in (RunStatus.QUEUED, RunStatus.RUNNING):
         raise HTTPException(409, f"Run is already {r.status.value}")
+    from datetime import datetime, timezone
     r.status = RunStatus.CANCELLED
+    if r.finished_at is None:
+        r.finished_at = datetime.now(timezone.utc)
     db.add(r)
     db.commit()
     from scriptmgr.executor.runner import kill_run

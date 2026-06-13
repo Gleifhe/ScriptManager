@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
         settings.host, settings.port, settings.executor_mode,
     )
     init_db()
+    _cleanup_stale_runs()
 
     # Register the running event loop so worker threads can publish into asyncio queues
     import asyncio
@@ -41,6 +42,37 @@ async def lifespan(app: FastAPI):
     from scriptmgr.executor.runtime import shutdown_executor
     shutdown_executor()
     logger.info("ScriptManager API stopped")
+
+
+def _cleanup_stale_runs() -> None:
+    """On startup, close out any runs left RUNNING or QUEUED by a previous crash.
+
+    Without this, runs that were live when the server was killed never get
+    a finished_at timestamp and are invisible to the Reports page.
+    """
+    from datetime import datetime, timezone
+    from scriptmgr.core.db import session_scope
+    from scriptmgr.core.models import Run, RunStatus
+
+    with session_scope() as db:
+        stale = (
+            db.query(Run)
+            .filter(
+                Run.status.in_([RunStatus.RUNNING, RunStatus.QUEUED]),
+                Run.finished_at.is_(None),
+            )
+            .all()
+        )
+        if stale:
+            now = datetime.now(timezone.utc)
+            for run in stale:
+                run.status = RunStatus.FAILED
+                run.finished_at = now
+                run.exit_code = run.exit_code if run.exit_code is not None else -1
+            logger.info(
+                "Startup cleanup: marked %d stale run(s) as FAILED (server was stopped while they ran)",
+                len(stale),
+            )
 
 
 def create_app() -> FastAPI:

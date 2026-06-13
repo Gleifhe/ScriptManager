@@ -106,8 +106,8 @@
         {% set langname = 'ps' if (s.interpreter in ('powershell','pwsh') or ext == 'ps1') else ('bat' if (s.interpreter in ('cmd','batch') or ext in ('bat','cmd')) else ('go' if (s.interpreter == 'go' or ext == 'go') else ('exe' if (ext == 'exe' or s.interpreter == '') else 'py'))) %}
         {% set langcolor = '#93c5fd' if langname=='ps' else ('#c4b5fd' if langname=='bat' else ('#6ee7b7' if langname=='go' else ('#fca5a5' if langname=='exe' else '#93c5fd'))) %}
         <div class="picker-item" data-search="{{ s.name|lower }} {{ (s.group.name if s.group else '')|lower }}"
-             draggable="true" ondragstart="pickerDragStart(event, {{ s.id }}, '{{ s.name|e }}')"
-             onclick="addStep({{ s.id }}, '{{ s.name|e }}')">
+             draggable="true" ondragstart="pickerDragStart(event, {{ s.id }}, {{ s.name|tojson }})"
+             onclick="addStep({{ s.id }}, {{ s.name|tojson }})">
           <span>
             <span style="font-size:.7rem;background:#1e293b;color:{{ langcolor }};padding:.1rem .3rem;border-radius:.2rem;margin-right:.35rem">{{ langname }}</span>
             <strong style="font-size:.85rem">{{ s.name }}</strong>
@@ -372,7 +372,6 @@ document.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key 
 render();
 setStatus('saved', '✓ saved');
 </script>
-{% endblock %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
   <div>
     <a href="/workflows" style="font-size:.85rem;color:#64748b">← Back to Workflows</a>

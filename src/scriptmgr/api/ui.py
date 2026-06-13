@@ -381,11 +381,15 @@ def run_detail(run_id: int, request: Request, db: Session = Depends(get_db)):
 
 @router.post("/runs/{run_id}/cancel", include_in_schema=False)
 def runs_cancel(run_id: int, db: Session = Depends(get_db)):
+    from datetime import datetime, timezone
     r = db.get(Run, run_id)
     if r and r.status in (RunStatus.QUEUED, RunStatus.RUNNING):
         r.status = RunStatus.CANCELLED
+        # Always stamp finished_at so the run appears in Reports
+        if r.finished_at is None:
+            r.finished_at = datetime.now(timezone.utc)
         db.commit()
-        # Actually kill the subprocess if it is running
+        # Also kill the subprocess if it is still running
         from scriptmgr.executor.runner import kill_run
         kill_run(run_id)
     return RedirectResponse(f"/runs/{run_id}", status_code=303)
