@@ -121,10 +121,10 @@
       <td>{{ run_counts.get(s.id, 0) }}</td>
       <td style="display:flex;gap:.4rem">
         <button class="btn btn-sm btn-primary"
-          onclick="openRunModal({{ s.id }}, {{ s.name|tojson }}, {{ s.path|tojson }})">▶ Run</button>
+          onclick='openRunModal({{ s.id }}, {{ s.name|tojson }}, {{ s.path|tojson }})'>▶ Run</button>
         <button class="btn btn-sm" style="background:#334155;color:#e2e8f0"
-          onclick="openEditModal({{ s.id }}, {{ s.name|tojson }}, {{ s.path|tojson }}, {{ s.group_id }}, {{ (s.interpreter or 'auto')|tojson }}, {{ (s.args|join(' '))|tojson }}, {{ s.timeout_sec }}, {{ s.description|tojson }})">Edit</button>
-        <form method="post" action="/scripts/{{ s.id }}/delete" onsubmit="return confirm('Delete {{ s.name }}?')">
+          onclick='openEditModal({{ s.id }}, {{ s.name|tojson }}, {{ s.path|tojson }}, {{ s.group_id }}, {{ (s.interpreter or "auto")|tojson }}, {{ (s.args|join(" "))|tojson }}, {{ s.timeout_sec }}, {{ s.description|tojson }})'>Edit</button>
+        <form method="post" action="/scripts/{{ s.id }}/delete" onsubmit='return confirm({{ ("Delete " ~ s.name ~ "?")|tojson }})'>
           <button class="btn btn-sm btn-danger">Delete</button>
         </form>
       </td>

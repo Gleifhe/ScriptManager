@@ -227,7 +227,7 @@ def services_delete(svc_id: int, db: Session = Depends(get_db)):
 
 @router.get("/groups", response_class=HTMLResponse, include_in_schema=False)
 def groups_list(request: Request, db: Session = Depends(get_db)):
-    groups = db.query(Group).order_by(Group.name).all()
+    groups = db.query(Group).options(joinedload(Group.scripts)).order_by(Group.name).all()
     return _tmpl(request, "groups.html", groups=groups)
 
 

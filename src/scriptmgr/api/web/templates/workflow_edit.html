@@ -106,8 +106,8 @@
         {% set langname = 'ps' if (s.interpreter in ('powershell','pwsh') or ext == 'ps1') else ('bat' if (s.interpreter in ('cmd','batch') or ext in ('bat','cmd')) else ('go' if (s.interpreter == 'go' or ext == 'go') else ('exe' if (ext == 'exe' or s.interpreter == '') else 'py'))) %}
         {% set langcolor = '#93c5fd' if langname=='ps' else ('#c4b5fd' if langname=='bat' else ('#6ee7b7' if langname=='go' else ('#fca5a5' if langname=='exe' else '#93c5fd'))) %}
         <div class="picker-item" data-search="{{ s.name|lower }} {{ (s.group.name if s.group else '')|lower }}"
-             draggable="true" ondragstart="pickerDragStart(event, {{ s.id }}, {{ s.name|tojson }})"
-             onclick="addStep({{ s.id }}, {{ s.name|tojson }})">
+             draggable="true" ondragstart='pickerDragStart(event, {{ s.id }}, {{ s.name|tojson }})'
+             onclick='addStep({{ s.id }}, {{ s.name|tojson }})'>
           <span>
             <span style="font-size:.7rem;background:#1e293b;color:{{ langcolor }};padding:.1rem .3rem;border-radius:.2rem;margin-right:.35rem">{{ langname }}</span>
             <strong style="font-size:.85rem">{{ s.name }}</strong>
@@ -152,9 +152,9 @@
 
 <script>
 // ── Script registry ──────────────────────────────────────────────────────────
-const scriptNames = { {% for s in scripts %}"{{ s.id }}": "{{ s.name|e }}", {% endfor %} };
-const scriptGroups = { {% for s in scripts %}"{{ s.id }}": "{{ (s.group.name if s.group else '')|e }}", {% endfor %} };
-const scriptPaths  = { {% for s in scripts %}"{{ s.id }}": "{{ s.path|e }}", {% endfor %} };
+const scriptNames = { {% for s in scripts %}"{{ s.id }}": {{ s.name|tojson }}, {% endfor %} };
+const scriptGroups = { {% for s in scripts %}"{{ s.id }}": {{ (s.group.name if s.group else '')|tojson }}, {% endfor %} };
+const scriptPaths  = { {% for s in scripts %}"{{ s.id }}": {{ s.path|tojson }}, {% endfor %} };
 
 // ── DAG state ─────────────────────────────────────────────────────────────────
 let dag = {{ workflow.dag | tojson }};

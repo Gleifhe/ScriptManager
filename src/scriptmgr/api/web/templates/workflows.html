@@ -58,7 +58,7 @@
         <form method="post" action="/workflows/{{ w.id }}/run">
           <button class="btn btn-sm btn-primary">▶ Run</button>
         </form>
-        <form method="post" action="/workflows/{{ w.id }}/delete" onsubmit="return confirm('Delete {{ w.name }}?')">
+        <form method="post" action="/workflows/{{ w.id }}/delete" onsubmit='return confirm({{ ("Delete " ~ w.name ~ "?")|tojson }})'>
           <button class="btn btn-sm btn-danger">Delete</button>
         </form>
       </td>

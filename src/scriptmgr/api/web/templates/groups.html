@@ -45,7 +45,7 @@
       <td>{{ g.scripts|length }}</td>
       <td style="color:#94a3b8">{{ g.created_at.strftime('%m/%d/%Y') if g.created_at else '—' }}</td>
       <td>
-        <form method="post" action="/groups/{{ g.id }}/delete" onsubmit="return confirm('Delete group {{ g.name }}?')">
+        <form method="post" action="/groups/{{ g.id }}/delete" onsubmit='return confirm({{ ("Delete group " ~ g.name ~ "?")|tojson }})'>
           <button class="btn btn-sm btn-danger">Delete</button>
         </form>
       </td>
